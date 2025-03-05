@@ -45,7 +45,8 @@ typedef struct _pdlua_gfx
     // Variables to keep track of mouse button state and drag position
     int mouse_drag_x, mouse_drag_y, mouse_down;
     int first_draw;
-    
+    uint64_t* images;
+    int num_images;
 #else
     int current_layer;
     void(*plugdata_draw_callback)(void*, int, t_symbol*, int, t_atom*); // Callback to perform drawing in plugdata
