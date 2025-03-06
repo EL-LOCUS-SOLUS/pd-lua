@@ -24,7 +24,7 @@ function hello:initialize(sel, atoms)
     self.mouse_down_pos = {0, 0}
     self.rect_down_pos = {0, 0}
 
-    self:set_size(630, 230)
+    self:set_size(720, 230)
     return true
 end
 
@@ -153,6 +153,7 @@ function hello:paint(g)
     g:draw_text("Bezier Paths", 360, 190, 120, 12)
     g:draw_text("Animation", 460, 190, 120, 12)
     g:draw_text("   Mouse\nInteraction", 540, 190, 120, 12)
+    g:draw_text("SVG rendering", 630, 190, 120, 12)
 end
 
 function hello:paint_layer_2(g)
@@ -165,6 +166,15 @@ function hello:paint_layer_3(g)
     g:set_color(66, 207, 201, 1)
     g:fill_rounded_rect(self.draggable_rect_x, self.draggable_rect_y, self.draggable_rect_size, self.draggable_rect_size, 5)
     g:set_color(0, 0, 0, 1)
+    g:draw_text("Drag\n me!", self.draggable_rect_x + 8, self.draggable_rect_y + 10, self.draggable_rect_size, 12)
+end
+
+function hello:paint_layer_4(g)
+    -- Draggable rectangle
+    local svg_demo = [[
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.394 5.925 10.523 4.41A1.842 1.842 0 0 0 9.363 4C7.956 4 7.068 5.514 7.756 6.742l.382.682 3.463-.722c.056-.012.17-.06.294-.21.14-.17.308-.362.499-.567ZM3 20a1 1 0 0 1 1-1h16a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" fill="#212121"/><path d="M21.547 6.83c-.945-1.084-2.617-2.5-4.855-2.327-.929.071-1.77.549-2.429 1.057a10.429 10.429 0 0 0-1.598 1.57c-.243.293-.546.486-.86.551l-4.663.972-.966-1.771A1.691 1.691 0 0 0 3 7.692v3.69a2.294 2.294 0 0 0 2.727 2.252l3.3-.635-.507 1.234a2.004 2.004 0 0 0 3.456 1.966l3.236-4.315 5.37-1.852a2.141 2.141 0 0 0 1.343-1.32 1.898 1.898 0 0 0-.378-1.883Z" fill="#212121"/></svg>
+    ]]
+    g:draw_svg(svg_demo, 650, 50)
     g:draw_text("Drag\n me!", self.draggable_rect_x + 8, self.draggable_rect_y + 10, self.draggable_rect_size, 12)
 end
 
