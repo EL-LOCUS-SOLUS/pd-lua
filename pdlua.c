@@ -788,7 +788,7 @@ static void pdlua_motion(t_gobj *z, t_floatarg dx, t_floatarg dy,
     t_floatarg up)
 #endif
 {
-#if !PLUGDATA
+#ifndef PLUGDATA
 #ifndef PURR_DATA
     if (!up)
 #endif
@@ -806,7 +806,7 @@ static void pdlua_motion(t_gobj *z, t_floatarg dx, t_floatarg dy,
 
 static int pdlua_click(t_gobj *z, t_glist *gl, int xpos, int ypos, int shift, int alt, int dbl, int doit){
     t_pdlua *x = (t_pdlua *)z;
-#if !PLUGDATA
+#ifndef PLUGDATA
     if(x->has_gui)
     {
         int zoom = glist_getzoom(gl);
@@ -842,13 +842,12 @@ static int pdlua_click(t_gobj *z, t_glist *gl, int xpos, int ypos, int shift, in
 
 static void pdlua_displace(t_gobj *z, t_glist *glist, int dx, int dy){
     t_pdlua *x = (t_pdlua *)z;
-    
 
     if(x->has_gui)
     {
        x->pd.te_xpix += dx, x->pd.te_ypix += dy;
        dx *= glist_getzoom(glist), dy *= glist_getzoom(glist);
-#if !PLUGDATA
+#ifndef PLUGDATA
         gfx_displace((t_pdlua*)z, glist, dx, dy);
 #endif
     }
@@ -1051,7 +1050,7 @@ static void pdlua_menu_open(t_pdlua *o)
         if (nw_gui_vmess)
           nw_gui_vmess("open_textfile", "s", pathname);
         else
-          sys_vgui("::pd_menucommands::menu_openfile {%s}\n", pathname);
+            pdgui_vmess("::pd_menucommands::menu_openfile", "s", pathname);
 #endif
     } else {
         lua_pop(__L(), 2); /* pop name, global "pd"*/
@@ -1449,7 +1448,7 @@ static int pdlua_object_new(lua_State *L)
                 o->gfx.width = 80;
                 o->gfx.height = 80;
                
-#if !PLUGDATA
+#ifndef PLUGDATA
                 // Init graphics state for pd
                 o->gfx.mouse_drag_x = 0;
                 o->gfx.mouse_drag_y = 0;
