@@ -1384,7 +1384,7 @@ static uint64_t pdlua_image_hash(unsigned char *str, float scale)
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     union { float f; uint32_t i; } u;
-    u.f = f;
+    u.f = scale;
     return hash ^ (u.i * 0x9E3779B9);
 }
 
