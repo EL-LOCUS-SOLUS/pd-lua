@@ -1374,7 +1374,8 @@ static int draw_text(lua_State* L) {
     return 0;
 }
 
-static uint64_t pdlua_image_hash(unsigned char *str)
+// Create single hash of svg text and render scale
+static uint64_t pdlua_image_hash(unsigned char *str, float scale)
 {
     uint64_t hash = 5381;
     int c;
@@ -1382,13 +1383,9 @@ static uint64_t pdlua_image_hash(unsigned char *str)
     while ((c = *str++))
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
-    return hash;
-}
-
-uint32_t pdlua_float_hash(float f) {
     union { float f; uint32_t i; } u;
     u.f = f;
-    return u.i * 0x9E3779B9;
+    return hash ^ (u.i * 0x9E3779B9);
 }
 
 static char *pdlua_base64_encode(const unsigned char *data,
@@ -1444,8 +1441,8 @@ static int draw_svg(lua_State* L) {
     float scale = (scale_x + scale_y) * 0.5f;
     
     char* svg_text = strdup(luaL_checkstring(L, 1));
-    uint64_t svg_hash = pdlua_image_hash((unsigned char*)svg_text);
-        
+    uint64_t svg_hash = pdlua_image_hash((unsigned char*)svg_text, scale);
+    
     int x = luaL_checknumber(L, 2);
     int y = luaL_checknumber(L, 3);
 
@@ -1456,8 +1453,6 @@ static int draw_svg(lua_State* L) {
 
     x *= canvas_zoom;
     y *= canvas_zoom;
-    
-    svg_hash ^= pdlua_float_hash(scale); // Make sure we get a unique hash at each scale level
     
     const char* tags[] = { gfx->object_tag, register_drawing(gfx), gfx->current_layer_tag };
 
