@@ -105,7 +105,7 @@ void pdlua_gfx_free(t_pdlua_gfx *gfx) {
     for(int i = 0; i < gfx->num_images; i++)
     {
         char image_name[64];
-        snprintf(image_name, 64, ".x%llupix%llu", gfx, gfx->images[i]);
+        snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, gfx->images[i]);
         pdgui_vmess(0, "rrs", "image", "delete", image_name);
     }
     if(gfx->num_images) freebytes(gfx->images, gfx->num_images * sizeof(uint64_t));
@@ -1029,7 +1029,7 @@ static int end_paint(lua_State* L) {
 static int set_color(lua_State* L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);
 
-    int r, g, b, a;
+    int r, g, b;
     if (lua_gettop(L) == 1) { // Single argument: parse as color ID instead of RGB
         int color_id = luaL_checknumber(L, 1);
         if(color_id != 1)
@@ -1056,7 +1056,7 @@ static int set_color(lua_State* L) {
     gfx->current_color[7] = '\0';
 #else
     // ... but it is in Purr Data (nw.js gui)
-    a = 255;
+    int a = 255;
     if (lua_gettop(L) >= 4) {
         a = luaL_checknumber(L, 4)*255;
     }
@@ -1445,8 +1445,9 @@ static int draw_svg(lua_State* L) {
     
     int x = luaL_checknumber(L, 2);
     int y = luaL_checknumber(L, 3);
-
+    
     transform_point(gfx, &x, &y);
+
     
     x += text_xpix((t_object*)obj, obj->canvas) / canvas_zoom;
     y += text_ypix((t_object*)obj, obj->canvas) / canvas_zoom;
@@ -1463,7 +1464,7 @@ static int draw_svg(lua_State* L) {
         if(gfx->images[i] == svg_hash)
         {
             char image_name[64];
-            snprintf(image_name, 64, ".x%llupix%llu", gfx, svg_hash);
+            snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, svg_hash);
             pdgui_vmess(0, "crr ii rs rr rS", cnv, "create", "image", x, y, "-image", image_name, "-anchor", "nw", "-tags", 3, tags);
             return 0;
         }
@@ -1484,8 +1485,10 @@ static int draw_svg(lua_State* L) {
     }
     
     const int channels = 4;
-    int w = (int)image->width * scale;
-    int h = (int)image->height * scale;
+    // Apply scale, limit size to object size
+    // This is not perfect clipping, but it at least prevents accidental large images from freezing pd
+    int w = (int)fmax(image->width * scale, gfx->width * canvas_zoom);
+    int h = (int)fmax(image->height* scale, gfx->height * canvas_zoom);
     int image_size = w * h * channels;
     
     unsigned char* bitmap_data = getbytes(image_size);
@@ -1526,7 +1529,7 @@ static int draw_svg(lua_State* L) {
     gfx->num_images++;
 
     char image_name[64];
-    snprintf(image_name, 64, ".x%llupix%llu", gfx, svg_hash);
+    snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, svg_hash);
     pdgui_vmess(0, "rrr s rs", "image", "create", "photo", image_name, "-data", encoded_png);
     pdgui_vmess(0, "crr ii rs rr rS", cnv, "create", "image", x, y, "-image", image_name, "-anchor", "nw", "-tags", 3, tags);
     
