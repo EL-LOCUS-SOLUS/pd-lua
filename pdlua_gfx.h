@@ -21,6 +21,15 @@
  *
  */
 
+#if !defined(PLUGDATA) && !defined(PURR_DATA)
+#define NANOSVG_IMPLEMENTATION
+#include "svg/nanosvg.h"
+#define NANOSVGRAST_IMPLEMENTATION
+#include "svg/nanosvgrast.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "svg/stb_image_write.h"
+#endif
+
 #ifdef PURR_DATA
 
 // Port of the vanilla gfx interface to Purr Data. There are some differences
@@ -64,6 +73,7 @@ static int stroke_rounded_rect(lua_State* L);
 
 static int draw_line(lua_State* L);
 static int draw_text(lua_State* L);
+static int draw_svg(lua_State* L);
 
 static int start_path(lua_State* L);
 static int line_to(lua_State* L);
@@ -84,19 +94,28 @@ static int free_path(lua_State* L);
 static void pdlua_gfx_clear(t_pdlua *obj, int layer, int removed); // only for pd-vanilla, to delete all tcl/tk items
 
 void pdlua_gfx_free(t_pdlua_gfx *gfx) {
-#if !PLUGDATA
+#ifndef PLUGDATA
     for(int i = 0; i < gfx->num_layers; i++)
     {
         freebytes(gfx->layer_tags[i], 64);
     }
     freebytes(gfx->layer_tags, gfx->num_layers);
     if(gfx->transforms) freebytes(gfx->transforms, gfx->num_transforms * sizeof(gfx_transform));
+#ifndef PURR_DATA
+    for(int i = 0; i < gfx->num_images; i++)
+    {
+        char image_name[64];
+        snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, gfx->images[i]);
+        pdgui_vmess(0, "rrs", "image", "delete", image_name);
+    }
+    if(gfx->num_images) freebytes(gfx->images, gfx->num_images * sizeof(uint64_t));
+#endif
 #endif
 }
 
 // Trigger repaint callback in lua script
 void pdlua_gfx_repaint(t_pdlua *o, int firsttime) {
-#if !PLUGDATA
+#ifndef PLUGDATA
     o->gfx.first_draw = firsttime;
 #endif
     lua_getglobal(__L(), "pd");
@@ -110,7 +129,7 @@ void pdlua_gfx_repaint(t_pdlua *o, int firsttime) {
     }
 
     lua_pop(__L(), 1); /* pop the global "pd" */
-#if !PLUGDATA
+#ifndef PLUGDATA
     o->gfx.first_draw = 0;
 #endif
 }
@@ -199,6 +218,7 @@ static const luaL_Reg gfx_methods[] = {
     {"stroke_rounded_rect", stroke_rounded_rect},
     {"draw_line", draw_line},
     {"draw_text", draw_text},
+    {"draw_svg", draw_svg},
     {"stroke_path", stroke_path},
     {"fill_path", fill_path},
     {"fill_all", fill_all},
@@ -296,7 +316,7 @@ static int start_paint(lua_State* L) {
     }
     t_pdlua *obj = (t_pdlua*)lua_touserdata(L, 1);
     int layer = luaL_checknumber(L, 2);
-    
+
     lua_pushlightuserdata(L, &obj->gfx);
     luaL_setmetatable(L, "GraphicsContext");
 
@@ -445,6 +465,20 @@ static int draw_text(lua_State* L) {
     return 0;
 }
 
+static int draw_svg(lua_State* L) {
+    t_pdlua_gfx *gfx = pop_graphics_context(L);
+    t_pdlua *obj = gfx->object;
+
+    t_canvas *cnv = glist_getcanvas(obj->canvas);
+
+    t_atom args[3];
+    SETSYMBOL(args, gensym(luaL_checkstring(L, 1)));
+    SETFLOAT(args + 1, luaL_checknumber(L, 2)); // x
+    SETFLOAT(args + 2, luaL_checknumber(L, 3)); // y
+
+    plugdata_draw(gfx->object, gfx->current_layer, gensym("lua_draw_svg"), 3, args);
+}
+
 static int stroke_path(lua_State* L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);
     t_pdlua *obj = gfx->object;
@@ -492,7 +526,6 @@ static int fill_path(lua_State* L) {
 
     return 0;
 }
-
 
 static int translate(lua_State* L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);
@@ -573,6 +606,17 @@ static void transform_point(t_pdlua_gfx *gfx, int* x, int* y) {
         {
             *x += gfx->transforms[i].x;
             *y += gfx->transforms[i].y;
+        }
+    }
+}
+
+static void transform_size_float(t_pdlua_gfx *gfx, float* w, float* h) {
+    for(int i = gfx->num_transforms - 1; i >= 0; i--)
+    {
+        if(gfx->transforms[i].type == SCALE)
+        {
+            *w *= gfx->transforms[i].x;
+            *h *= gfx->transforms[i].y;
         }
     }
 }
@@ -756,7 +800,9 @@ static void get_bounds_args(lua_State* L, t_pdlua *obj, int* x1, int* y1, int* x
 static void gfx_displace(t_pdlua *x, t_glist *glist, int dx, int dy)
 {
 #ifndef PURR_DATA
-    sys_vgui(".x%lx.c move .x%lx %d %d\n", glist_getcanvas(x->canvas), (long)x, dx, dy);
+    char obj_name[32];
+    snprintf(obj_name, 32 ,".x%lx", (long)x);
+    pdgui_vmess(0, "crs ii", glist_getcanvas(x->canvas), "move", obj_name, dx, dy);
 #else
     gui_vmess("gui_text_displace", "xsii", glist_getcanvas(x->canvas), x->gfx.object_tag, dx, dy);
 #endif
@@ -779,7 +825,6 @@ static int gfx_initialize(t_pdlua *obj)
 {
     t_pdlua_gfx *gfx = &obj->gfx;
 
-    t_object *ob = (t_object*)obj;
 #ifndef PURR_DATA
     snprintf(gfx->object_tag, 128, ".x%lx", (long)obj);
     gfx->object_tag[127] = '\0';
@@ -984,7 +1029,7 @@ static int end_paint(lua_State* L) {
 static int set_color(lua_State* L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);
 
-    int r, g, b, a;
+    int r, g, b;
     if (lua_gettop(L) == 1) { // Single argument: parse as color ID instead of RGB
         int color_id = luaL_checknumber(L, 1);
         if(color_id != 1)
@@ -1011,7 +1056,7 @@ static int set_color(lua_State* L) {
     gfx->current_color[7] = '\0';
 #else
     // ... but it is in Purr Data (nw.js gui)
-    a = 255;
+    int a = 255;
     if (lua_gettop(L) >= 4) {
         a = luaL_checknumber(L, 4)*255;
     }
@@ -1329,6 +1374,176 @@ static int draw_text(lua_State* L) {
     return 0;
 }
 
+// Create single hash of svg text and render scale
+static uint64_t pdlua_image_hash(unsigned char *str, float scale)
+{
+    uint64_t hash = 5381;
+    int c;
+
+    while ((c = *str++))
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    union { float f; uint32_t i; } u;
+    u.f = scale;
+    return hash ^ (u.i * 0x9E3779B9);
+}
+
+static char *pdlua_base64_encode(const unsigned char *data,
+                    size_t input_length) {
+
+    static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+                                    'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+                                    'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+                                    'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+                                    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+                                    'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+                                    'w', 'x', 'y', 'z', '0', '1', '2', '3',
+                                    '4', '5', '6', '7', '8', '9', '+', '/'};
+
+    static int mod_table[] = {0, 2, 1};
+
+    size_t output_length = 4 * ((input_length + 2) / 3);
+
+    char *encoded_data = malloc(output_length+1);
+    if (encoded_data == NULL) return NULL;
+
+    for (size_t i = 0, j = 0; i < input_length;) {
+
+        uint32_t octet_a = i < input_length ? (unsigned char)data[i++] : 0;
+        uint32_t octet_b = i < input_length ? (unsigned char)data[i++] : 0;
+        uint32_t octet_c = i < input_length ? (unsigned char)data[i++] : 0;
+
+        uint32_t triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
+
+        encoded_data[j++] = encoding_table[(triple >> 3 * 6) & 0x3F];
+        encoded_data[j++] = encoding_table[(triple >> 2 * 6) & 0x3F];
+        encoded_data[j++] = encoding_table[(triple >> 1 * 6) & 0x3F];
+        encoded_data[j++] = encoding_table[(triple >> 0 * 6) & 0x3F];
+    }
+
+    for (int i = 0; i < mod_table[input_length % 3]; i++)
+        encoded_data[output_length - 1 - i] = '=';
+
+    encoded_data[output_length] = '\0';
+    return encoded_data;
+}
+
+static int draw_svg(lua_State* L) {
+    t_pdlua_gfx *gfx = pop_graphics_context(L);
+    t_pdlua *obj = gfx->object;
+
+    t_canvas *cnv = glist_getcanvas(obj->canvas);
+    int canvas_zoom = glist_getzoom(cnv);
+    
+    // We can only apply scaling with an equal aspect ratio, so we only use the first scale coordinate
+    float scale_x = canvas_zoom, scale_y = canvas_zoom;
+    transform_size_float(gfx, &scale_x, &scale_y);
+    float scale = (scale_x + scale_y) * 0.5f;
+    
+    char* svg_text = strdup(luaL_checkstring(L, 1));
+    uint64_t svg_hash = pdlua_image_hash((unsigned char*)svg_text, scale);
+    
+    int x = luaL_checknumber(L, 2);
+    int y = luaL_checknumber(L, 3);
+    
+    transform_point(gfx, &x, &y);
+
+    
+    x += text_xpix((t_object*)obj, obj->canvas) / canvas_zoom;
+    y += text_ypix((t_object*)obj, obj->canvas) / canvas_zoom;
+
+    x *= canvas_zoom;
+    y *= canvas_zoom;
+    
+    const char* tags[] = { gfx->object_tag, register_drawing(gfx), gfx->current_layer_tag };
+
+#ifndef PURR_DATA
+    // See if we already rendered the same svg text at the same size, if so, reuse that image
+    for(int i = 0; i < gfx->num_images; i++)
+    {
+        if(gfx->images[i] == svg_hash)
+        {
+            char image_name[64];
+            snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, svg_hash);
+            pdgui_vmess(0, "crr ii rs rr rS", cnv, "create", "image", x, y, "-image", image_name, "-anchor", "nw", "-tags", 3, tags);
+            return 0;
+        }
+    }
+
+    // First parse svg text with nanosvg
+    struct NSVGimage* image = nsvgParse(svg_text, "px", 96);
+    if (!image) {
+        pd_error(0, "[pdlua]: Failed to parse SVG data.");
+        return 0;
+    }
+
+    // Then rasterize to a bitmap image
+    struct NSVGrasterizer* rast = nsvgCreateRasterizer();
+    if (!rast) {
+        pd_error(0, "[pdlua]: Failed to create rasterizer.");
+        return 0;
+    }
+    
+    const int channels = 4;
+    // Apply scale, limit size to object size
+    // This is not perfect clipping, but it at least prevents accidental large images from freezing pd
+    int w = (int)fmax(image->width * scale, gfx->width * canvas_zoom);
+    int h = (int)fmax(image->height* scale, gfx->height * canvas_zoom);
+    int image_size = w * h * channels;
+    
+    unsigned char* bitmap_data = getbytes(image_size);
+    if (!bitmap_data) {
+        pd_error(0, "[pdlua]: Failed to allocate memory for bitmap.");
+        return 0;
+    }
+
+    nsvgRasterize(rast, image, 0, 0, scale, bitmap_data, w, h, w * channels);
+    
+    // Convert bitmap data to png
+    int png_size;
+    unsigned char* png_buf = stbi_write_png_to_mem(bitmap_data, w * channels, w, h, channels, &png_size);
+    if (!png_buf || png_size <= 0) {
+        pd_error(0, "[pdlua]: Failed to encode PNG image.");
+        return 0;
+    }
+    
+    // Encode PNG data to Base64
+    char* encoded_png = pdlua_base64_encode((unsigned char*)png_buf, png_size);
+    free(png_buf);
+    
+    if (!encoded_png) {
+        pd_error(0, "[pdlua]: Failed to encode PNG to Base64.");
+        return 0;
+    }
+
+    // Write entry to image hash table
+    if(gfx->num_images == 0)
+    {
+        gfx->images = getbytes(sizeof(uint64_t));
+    }
+    else {
+        gfx->images = resizebytes(gfx->images, gfx->num_images*sizeof(uint64_t), (gfx->num_images+1) * sizeof(uint64_t));
+    }
+
+    gfx->images[gfx->num_images] = svg_hash;
+    gfx->num_images++;
+
+    char image_name[64];
+    snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, svg_hash);
+    pdgui_vmess(0, "rrr s rs", "image", "create", "photo", image_name, "-data", encoded_png);
+    pdgui_vmess(0, "crr ii rs rr rS", cnv, "create", "image", x, y, "-image", image_name, "-anchor", "nw", "-tags", 3, tags);
+    
+    // Cleanup
+    free(encoded_png);
+    free(svg_text);
+    freebytes(bitmap_data, image_size);
+#else // PURR_DATA
+    // TODO: implement for purr-data, probably just send the svg text over?
+#endif
+    return 0;
+}
+
+
 static int stroke_path(lua_State* L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);
     t_pdlua *obj = gfx->object;
@@ -1351,13 +1566,16 @@ static int stroke_path(lua_State* L) {
 #ifndef PURR_DATA
     pdgui_vmess(0, "crr iiii ri rs rS", cnv, "create", "line", 0, 0, 0, 0, "-width", stroke_width, "-fill", gfx->current_color, "-tags", 3, tags);
     
-    sys_vgui(".x%lx.c coords %s", cnv, tags[1]);
+    t_float* transformed_coordinates = getbytes(path->num_path_segments * 2 * sizeof(t_float));
     for (int i = 0; i < path->num_path_segments; i++) {
-        float x = path->path_segments[i * 2], y = path->path_segments[i * 2 + 1];
+        float x =  path->path_segments[i * 2], y = path->path_segments[i * 2 + 1];
         transform_point_float(gfx, &x, &y);
-        sys_vgui(" %f %f", (x * canvas_zoom) + obj_x, (y * canvas_zoom) + obj_y);
+        transformed_coordinates[i * 2] = (x * canvas_zoom) + obj_x;
+        transformed_coordinates[i * 2 + 1] = (y * canvas_zoom) + obj_y;
     }
-    sys_vgui("\n");
+    pdgui_vmess(0, "crs F", cnv, "coords", tags[1], path->num_path_segments*2, transformed_coordinates);
+    freebytes(transformed_coordinates, path->num_path_segments * 2 * sizeof(t_float));
+    
 #else // PURR_DATA
     gui_start_vmess("gui_luagfx_stroke_path", "xsssi", cnv, tags[2], tags[1],
                     gfx->current_color, stroke_width);
@@ -1397,13 +1615,15 @@ static int fill_path(lua_State* L) {
 #ifndef PURR_DATA
     pdgui_vmess(0, "crr iiii ri rs rS", cnv, "create", "polygon", 0, 0, 0, 0, "-width", 0, "-fill", gfx->current_color, "-tags", 3, tags);
 
-    sys_vgui(".x%lx.c coords %s", cnv, tags[1]);
+    t_float* transformed_coordinates = getbytes(path->num_path_segments * 2 * sizeof(t_float));
     for (int i = 0; i < path->num_path_segments; i++) {
-        float x = path->path_segments[i * 2], y = path->path_segments[i * 2 + 1];
+        float x =  path->path_segments[i * 2], y = path->path_segments[i * 2 + 1];
         transform_point_float(gfx, &x, &y);
-        sys_vgui(" %f %f", (x * canvas_zoom) + obj_x, (y * canvas_zoom) + obj_y);
+        transformed_coordinates[i * 2] = (x * canvas_zoom) + obj_x;
+        transformed_coordinates[i * 2 + 1] = (y * canvas_zoom) + obj_y;
     }
-    sys_vgui("\n");
+    pdgui_vmess(0, "crs F", cnv, "coords", tags[1], path->num_path_segments*2, transformed_coordinates);
+    freebytes(transformed_coordinates, path->num_path_segments * 2 * sizeof(t_float));
 #else // PURR_DATA
     gui_start_vmess("gui_luagfx_fill_path", "xsssi", cnv, tags[2], tags[1],
                     gfx->current_color, 0);
