@@ -25,7 +25,7 @@ if(NOT TARGET lua)
 endif()
 
 if(NOT TARGET pdlua)
-  pd_add_external(pdlua pdlua.c)
+  pd_add_external(pdlua ${CMAKE_CURRENT_SOURCE_DIR}/pdlua.c)
   target_link_libraries(pdlua PUBLIC lua)
   pd_add_datafile(pdlua pd.lua)
   pd_add_datafile(pdlua

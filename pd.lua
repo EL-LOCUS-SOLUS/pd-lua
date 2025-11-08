@@ -630,6 +630,6 @@ Colors = {background = 0, foreground = 1, outline = 2}
 
 -- pre-load pdx.lua (advanced live coding support); if you don't want this,
 -- just comment out the line below
-pdx = require 'pdx'
+-- pdx = require 'pdx'
 
 -- fin pd.lua
