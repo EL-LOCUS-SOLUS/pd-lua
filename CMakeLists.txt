@@ -30,6 +30,7 @@ if(NOT TARGET pdlua)
   pd_add_datafile(pdlua pd.lua)
   pd_add_datafile(pdlua
                   "${CMAKE_CURRENT_SOURCE_DIR}/pdlua/tutorial/examples/pdx.lua")
+  target_include_directories(pdlua PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lua")
 else()
   target_sources(pdlua PUBLIC "${LIB_DIR}/pdlua.c")
 endif()
