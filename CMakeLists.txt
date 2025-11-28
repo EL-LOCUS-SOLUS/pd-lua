@@ -8,7 +8,7 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 set(PDCMAKE_FILE ${CMAKE_BINARY_DIR}/pd.cmake)
-set(PDCMAKE_VERSION "v0.2.6")
+set(PDCMAKE_VERSION "v0.2.8")
 if(NOT EXISTS "${PDCMAKE_FILE}")
   file(
     DOWNLOAD
@@ -27,7 +27,7 @@ endif()
 if(NOT TARGET pdlua)
   pd_add_external(pdlua ${CMAKE_CURRENT_SOURCE_DIR}/pdlua.c)
   target_link_libraries(pdlua PUBLIC lua)
-  pd_add_datafile(pdlua pd.lua)
+  pd_add_datafile(pdlua ${CMAKE_CURRENT_SOURCE_DIR}/pd.lua)
   pd_add_datafile(pdlua
                   "${CMAKE_CURRENT_SOURCE_DIR}/pdlua/tutorial/examples/pdx.lua")
   target_include_directories(pdlua PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lua")
