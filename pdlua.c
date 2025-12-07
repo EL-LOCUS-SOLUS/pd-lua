@@ -2412,6 +2412,37 @@ static int pdlua_error(lua_State *L)
     return 0;
 }
 
+/** Report logs from a Lua object to Pd's console. */
+static int pdlua_logpost(lua_State *L)
+/**< Lua interpreter state.
+  * \par Inputs:
+  * \li \c 1 Pd object pointer.
+  * \li \c 2 Log level.
+  * \li \c 3 Message string.
+  * */
+{
+    t_pdlua     *o;
+    int         loglevel;
+    const char  *s;
+
+    PDLUA_DEBUG("pdlua_error: stack top is %d", lua_gettop(L));
+    if (lua_islightuserdata(L, 1))
+    {
+        o = lua_touserdata(L, 1);
+        if (o)
+        {
+            loglevel = luaL_checknumber(L, 2);
+            s = luaL_checkstring(L, 3);
+            if (s) logpost(o, loglevel, "%s", s);
+            else logpost(o, 0, "lua: error: null string in error function");
+        }
+        else pd_error(NULL, "lua: error: null object in error function");
+    }
+    else pd_error(NULL, "lua: error: bad arguments to logpost function");
+    PDLUA_DEBUG("pdlua_error: end. stack top is %d", lua_gettop(L));
+    return 0;
+}
+
 static void pdlua_packagepath(lua_State *L, const char *path)
 {
     PDLUA_DEBUG("pdlua_packagepath: stack top %d", lua_gettop(L));
@@ -2800,6 +2831,9 @@ static void pdlua_init(lua_State *L)
     lua_settable(L, -3);
     lua_pushstring(L, "_error");
     lua_pushcfunction(L, pdlua_error);
+    lua_settable(L, -3);
+    lua_pushstring(L, "_logpost");
+    lua_pushcfunction(L, pdlua_logpost);
     lua_settable(L, -3);
     /* 20240906 ag: Added TIMEUNITPERMSEC, systime and timesince, to make
        clock_set useable. NOTE: TIMEUNITPERMSEC is the time unit for systime,

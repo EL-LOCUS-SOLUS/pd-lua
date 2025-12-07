@@ -553,6 +553,10 @@ function pd.Class:error(msg)
   pd._error(self._object, msg)
 end
 
+function pd.Class:logpost(loglevel, msg)
+  pd._logpost(self._object, loglevel, msg)
+end
+
 function pd.Class:whoami()
   return self._scriptname or self._name
 end
