@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <math.h>
 #include <sys/types.h> // for open
 #include <sys/stat.h> // for open
@@ -743,7 +744,11 @@ static void pdlua_free( t_pdlua *o /**< The object to destruct. */)
     
     // Collect garbage
     // If we don't do this here, it could potentially leak if no other pdlua objects are used afterwards
+    #if LUA_VERSION_NUM	< 502
+        lua_gc(__L(), LUA_GCCOLLECT, 0);
+#else
     lua_gc(__L(), LUA_GCCOLLECT);
+#endif
     
     return;
 }
@@ -1281,7 +1286,11 @@ static int pdlua_set_arguments(lua_State *L)
                 glist_isvisible(o->canvas);
 
             // Get the number of elements in the table
-            int argc = lua_rawlen(L, 2);
+            #if LUA_VERSION_NUM < 502
+                int argc = lua_objlen(L, 2);   /* LuaJIT / Lua 5.1 */
+            #else
+                int argc = lua_rawlen(L, 2);   /* Lua 5.2+ */
+            #endif
 
             // Iterate through the table elements
             for (int i = 1; i <= argc; i++) {
@@ -1569,8 +1578,22 @@ static int pdlua_object_createinlets(lua_State *L)
             // determine the new number of inlets
             int have_number = lua_isnumber(L, 2);
             int have_table = lua_istable(L, 2);
-            int new_inlets = have_number ? luaL_checknumber(L, 2) :
-                have_table ? lua_rawlen(L, 2) : 0;
+            int new_inlets = 0;
+
+            if (have_number) {
+                new_inlets = luaL_checknumber(L, 2);
+            } 
+            else if (have_table) {
+#if LUA_VERSION_NUM < 502
+                new_inlets = lua_objlen(L, 2);   /* LuaJIT / Lua 5.1 */
+#else
+                new_inlets = lua_rawlen(L, 2);   /* Lua 5.2+ */
+#endif
+            } 
+            else {
+                new_inlets = 0;
+            }
+
             if (!have_number && !have_table) return luaL_error(L, "inlets must be a number or a table");
             // need to suspend dsp state here, in case any signal inlets are
             // created or destroyed
@@ -1656,8 +1679,21 @@ static int pdlua_object_createoutlets(lua_State *L)
             int old_outlets = o->outlets;
             int have_number = lua_isnumber(L, 2);
             int have_table = lua_istable(L, 2);
-            int new_outlets = have_number ? luaL_checknumber(L, 2) :
-                have_table ? lua_rawlen(L, 2) : 0;
+            int new_outlets = 0;
+            if (have_number) {
+                new_outlets = luaL_checknumber(L, 2);
+            } 
+            else if (have_table) {
+#if LUA_VERSION_NUM < 502
+                new_outlets = lua_objlen(L, 2);   /* LuaJIT / Lua 5.1 */
+#else
+                new_outlets = lua_rawlen(L, 2);   /* Lua 5.2+ */
+#endif
+            } 
+            else {
+                new_outlets = 0;
+            }
+
             if (!have_number && !have_table) return luaL_error(L, "outlets must be a number or a table");
             int dspstate = canvas_suspend_dsp();
             int redraw = o->pd.te_binbuf && gobj_shouldvis(&o->pd.te_g, o->canvas) && glist_isvisible(o->canvas);
