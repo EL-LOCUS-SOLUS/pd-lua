@@ -461,6 +461,10 @@ function pd.Class:canvas_realizedollar(s)
   return pd._canvas_realizedollar(self._object, s)
 end
 
+function pd.Class:get_canvas_dir()
+  return pd._canvaspath(self._object)
+end
+
 function pd.Class:signal_setmultiout(n, channelcount)
   pd._signal_setmultiout(self._object, n, channelcount)
 end
