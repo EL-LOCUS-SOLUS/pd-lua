@@ -118,7 +118,10 @@ static void pdlua_gfx_free(t_pdlua_gfx *gfx) {
         snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, (unsigned long long)gfx->images[i]);
         pdgui_vmess(0, "rrs", "image", "delete", image_name);
     }
-    if(gfx->num_images) freebytes(gfx->images, gfx->num_images * sizeof(uint64_t));
+    if(gfx->num_images) {
+        freebytes(gfx->images, gfx->num_images * sizeof(uint64_t));
+        freebytes(gfx->images_last_used, gfx->num_images * sizeof(uint32_t));
+    }
 #endif
 #endif
 }
@@ -127,11 +130,11 @@ static void pdlua_gfx_free(t_pdlua_gfx *gfx) {
 static void pdlua_gfx_repaint(t_pdlua *o, int firsttime) {
 #ifndef PLUGDATA
     o->gfx.first_draw = firsttime;
+    o->gfx.paint_generation++;
 #endif
     lua_getglobal(__L(), "pd");
     lua_getfield (__L(), -1, "_repaint");
     lua_pushlightuserdata(__L(), o);
-
 
     if (lua_pcall(__L(), 1, 0, 0))
     {
@@ -537,6 +540,32 @@ static void generate_random_id(char *str, size_t len) {
 
     str[len - 1] = '\0';
 }
+
+#ifndef PURR_DATA
+static void pdlua_sweep_image_cache(t_pdlua_gfx *gfx)
+{
+    int i = 0;
+    while (i < gfx->num_images) {
+        uint32_t age = gfx->paint_generation - gfx->images_last_used[i];
+        if (gfx->num_images > 15 && age > 5) { // If we have too many images, delete all images that havn't been drawn in 5 frames
+            char image_name[64];
+            snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, (unsigned long long)gfx->images[i]);
+            pdgui_vmess(0, "rrs", "image", "delete", image_name);
+
+            // Swap with last entry and shrink (O(1) removal)
+            gfx->images[i] = gfx->images[gfx->num_images - 1];
+            gfx->images_last_used[i] = gfx->images_last_used[gfx->num_images - 1];
+
+            gfx->images = resizebytes(gfx->images, gfx->num_images * sizeof(uint64_t), (gfx->num_images - 1) * sizeof(uint64_t));
+            gfx->images_last_used = resizebytes(gfx->images_last_used, gfx->num_images * sizeof(uint32_t), (gfx->num_images - 1) * sizeof(uint32_t));
+            gfx->num_images--;
+        } else {
+            i++;
+        }
+    }
+}
+#endif
+
 
 static void transform_size(t_pdlua_gfx *gfx, int *w, int *h) {
     for(int i = gfx->num_transforms - 1; i >= 0; i--)
@@ -977,6 +1006,7 @@ static int end_paint(lua_State *L) {
             pdgui_vmess(0, "crss", cnv, "raise", gfx->current_layer_tag, gfx->layer_tags[layer - 1]);
         }
     }
+    pdlua_sweep_image_cache(gfx);
 #endif
 
     return 0;
@@ -1416,7 +1446,6 @@ static int draw_svg(lua_State *L) {
 
     transform_point(gfx, &x, &y);
 
-
     x += text_xpix((t_object*)obj, obj->canvas) / canvas_zoom;
     y += text_ypix((t_object*)obj, obj->canvas) / canvas_zoom;
 
@@ -1434,6 +1463,7 @@ static int draw_svg(lua_State *L) {
             char image_name[64];
             snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, (unsigned long long)svg_hash);
             pdgui_vmess(0, "crr ii rs rr rS", cnv, "create", "image", x, y, "-image", image_name, "-anchor", "nw", "-tags", 3, tags);
+            gfx->images_last_used[i] = gfx->paint_generation;
             return 0;
         }
     }
@@ -1488,12 +1518,15 @@ static int draw_svg(lua_State *L) {
     if(gfx->num_images == 0)
     {
         gfx->images = getbytes(sizeof(uint64_t));
+        gfx->images_last_used = getbytes(sizeof(uint32_t));
     }
     else {
         gfx->images = resizebytes(gfx->images, gfx->num_images*sizeof(uint64_t), (gfx->num_images+1) * sizeof(uint64_t));
+        gfx->images_last_used = resizebytes(gfx->images_last_used, gfx->num_images*sizeof(uint32_t), (gfx->num_images+1) * sizeof(uint32_t));
     }
 
     gfx->images[gfx->num_images] = svg_hash;
+    gfx->images_last_used[gfx->num_images] = gfx->paint_generation;
     gfx->num_images++;
 
     char image_name[64];
@@ -1545,6 +1578,7 @@ static int draw_image(lua_State *L) {
         if (gfx->images[i] == image_hash) {
             pdgui_vmess(0, "crr ii rs rr rS", cnv, "create", "image", x, y,
                         "-image", image_name, "-anchor", "nw", "-tags", 3, tags);
+            gfx->images_last_used[i] = gfx->paint_generation;
             return 0;
         }
     }
@@ -1656,20 +1690,24 @@ static int draw_image(lua_State *L) {
     free(encoded);
 
     // Cache the scaled hash
-    if (gfx->num_images == 0)
+    if (gfx->num_images == 0) {
         gfx->images = getbytes(sizeof(uint64_t));
-    else
-        gfx->images = resizebytes(gfx->images,
-                                   gfx->num_images * sizeof(uint64_t),
-                                   (gfx->num_images + 1) * sizeof(uint64_t));
-    gfx->images[gfx->num_images++] = image_hash;
+        gfx->images_last_used = getbytes(sizeof(uint32_t));
+    }
+    else {
+        gfx->images = resizebytes(gfx->images, gfx->num_images * sizeof(uint64_t), (gfx->num_images + 1) * sizeof(uint64_t));
+        gfx->images_last_used = resizebytes(gfx->images_last_used, gfx->num_images * sizeof(uint32_t), (gfx->num_images + 1) * sizeof(uint32_t));
+    }
+
+    gfx->images_last_used[gfx->num_images] = gfx->paint_generation;
+    gfx->images[gfx->num_images] = image_hash;
+    gfx->num_images++;
 
 #else
     // TODO: purr-data
 #endif
     return 0;
 }
-
 
 static int stroke_path(lua_State *L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);

@@ -62,23 +62,24 @@ typedef struct _pdlua_gfx
     // Size variables
     int width, height;
     void *object;
-
 #ifndef PLUGDATA
     char object_tag[128]; // Tcl/tk tag that is attached to all drawings
     char order_tag[64]; // Tag for invisible line, used to preserve correct object ordering
     char current_item_tag[64]; // Tcl/tk tag that is only attached to the current drawing in progress
-    char** layer_tags;
+    char **layer_tags;
     int num_layers;
-    char* current_layer_tag;
-    gfx_transform* transforms;
+    char *current_layer_tag;
+    gfx_transform *transforms;
     int num_transforms;
     char current_color[10]; // Keep track of current color
 
     // Variables to keep track of mouse position, button state and whether the mouse is inside the object
     int mouse_x, mouse_y, mouse_down, mouse_inside;
     int first_draw;
+    uint32_t paint_generation;
 #ifndef PURR_DATA
-    uint64_t* images;
+    uint64_t *images;
+    uint32_t *images_last_used;
     int num_images;
 #endif
     struct pdlua_proxycanvas *proxycanvas;
