@@ -377,7 +377,8 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
     if(pdlua->properties.frame_count != 0)
         pd_unbind(&pdlua->pd.ob_pd, p->properties_receiver);
 
-    p->current_frame = NULL;
+    p->current_frame_name = NULL;
+    p->current_frame_id = NULL;
     p->frame_count = 0;
     p->property_count = 0;
     p->current_row = 0;
@@ -518,19 +519,6 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
 #endif
 }
 
-static void pdlua_properties_buildvar(t_pdlua *pdlua, char *out)
-{
-    char sanitized_frame[100];
-    snprintf(sanitized_frame, 100, "%s",  pdlua->properties.current_frame->s_name);
-
-    /* replace '.' because Tcl variable names don't like them */
-    for (char *p = sanitized_frame; *p; p++)
-        if (*p == '.')
-            *p = '_';
-
-    snprintf(out, IDLENGTH, "::%s%d_%s_value", "pdlua_property", ++pdlua->properties.property_count, sanitized_frame);
-}
-
 static int pdlua_properties_newframe(lua_State *L)
 {
     t_pdlua *pdlua = *(t_pdlua**)lua_touserdata(L, 1);
@@ -540,8 +528,9 @@ static int pdlua_properties_newframe(lua_State *L)
 #ifndef PURR_DATA
     pdlua->properties.frame_count++;
     char current_frame_id[100]; // limit frame name to 100 chars to ensure no buffer overflows are possible
+    char current_frame_name[100];
     snprintf(current_frame_id, 100, ".%p.main.frame%d", (void *)&pdlua->properties, pdlua->properties.frame_count);
-    pdlua->properties.current_frame = gensym(current_frame_id);
+    snprintf(current_frame_name, 100, "_%p_main_frame%d", (void *)&pdlua->properties, pdlua->properties.frame_count);
 
     // Create main frame for set of configurations
     pdgui_vmess(0, "sssssi", "frame", current_frame_id, "-relief", "groove", "-borderwidth", 1);
@@ -564,7 +553,9 @@ static int pdlua_properties_newframe(lua_State *L)
     for (int i = 0; i < col; i++) {
         pdgui_vmess(0, "sssisi", "grid", "columnconfigure", content_frame_id, i, "-weight", 1);
     }
-    pdlua->properties.current_frame = gensym(content_frame_id);
+
+    pdlua->properties.current_frame_id = gensym(content_frame_id);
+    pdlua->properties.current_frame_name = gensym(current_frame_name);
     pdlua->properties.max_col = col;
     pdlua->properties.current_col = 0;
     pdlua->properties.current_row = 0;
@@ -587,7 +578,7 @@ static int pdlua_properties_addcheck(lua_State *L)
     }
 
 #ifndef PURR_DATA
-    if(!pdlua->properties.current_frame)
+    if(!pdlua->properties.current_frame_id)
     {
         pd_error(NULL, "[pdlua] add_check: no active frame");
         return 0;
@@ -597,7 +588,7 @@ static int pdlua_properties_addcheck(lua_State *L)
     char check_id[IDLENGTH];
     char check_var[IDLENGTH];
 
-    pdlua_properties_buildvar(pdlua, check_var);
+    snprintf(check_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     // Initialize the Tcl variable to 0 (unchecked)
     pdgui_vmess(0, "ssi", "set", check_var, init_value);
@@ -607,7 +598,7 @@ static int pdlua_properties_addcheck(lua_State *L)
              pdlua->properties.properties_receiver->s_name, method, check_var);
 
     // Create the checkbox
-    snprintf(check_id, IDLENGTH, "%s.check%d", pdlua->properties.current_frame->s_name, pdlua->properties.property_count);
+    snprintf(check_id, IDLENGTH, "%s.check%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
     pdgui_vmess(0, "ssssssss", "checkbutton", check_id, "-text", text, "-variable", check_var,
                 "-command", pdsend);
 
@@ -633,7 +624,7 @@ static int pdlua_properties_addtext(lua_State *L)
     const char *init_value = luaL_checkstring(L, 4);
 
 #ifndef PURR_DATA
-    if(!pdlua->properties.current_frame)
+    if(!pdlua->properties.current_frame_id)
     {
         pd_error(NULL, "[pdlua] add_text: no active frame");
         return 0;
@@ -644,7 +635,7 @@ static int pdlua_properties_addtext(lua_State *L)
     char entry_id[MAXPDSTRING];
     char text_var[IDLENGTH];
 
-    pdlua_properties_buildvar(pdlua, text_var);
+    snprintf(text_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     pdgui_vmess(0, "sss", "set", text_var, init_value);
 
@@ -654,7 +645,7 @@ static int pdlua_properties_addtext(lua_State *L)
 
     // container_id for button to set and text input
     char text_button_frame_id[IDLENGTH];
-    snprintf(text_button_frame_id, IDLENGTH, "%s.text_button_frame_%d", pdlua->properties.current_frame->s_name,
+    snprintf(text_button_frame_id, IDLENGTH, "%s.text_button_frame_%d", pdlua->properties.current_frame_id->s_name,
              pdlua->properties.property_count);
     pdgui_vmess(0, "sssssisisi", "frame", text_button_frame_id, "-relief", "solid", "-borderwidth", 0,
                 "-padx", 5, "-pady", 5);
@@ -723,7 +714,7 @@ static int pdlua_properties_addcolor(lua_State *L) {
     }
 
 #ifndef PURR_DATA
-    if (!pdlua->properties.current_frame) {
+    if (!pdlua->properties.current_frame_id) {
         pd_error(NULL, "[pdlua] add_color: no active frame");
         return 0;
     }
@@ -736,7 +727,7 @@ static int pdlua_properties_addcolor(lua_State *L) {
     pdlua->properties.property_count++;
 
     snprintf(container_id, IDLENGTH/2, "%s.color%d",
-             pdlua->properties.current_frame->s_name,
+             pdlua->properties.current_frame_id->s_name,
              pdlua->properties.property_count);
     snprintf(text_id, MAXPDSTRING, "%s.label", container_id);
     snprintf(colorbox_id, IDLENGTH, "%s.box", container_id);
@@ -795,7 +786,7 @@ static int pdlua_properties_addint(lua_State *L)
     double max = luaL_optnumber(L, 6, 1e36);
 
 #ifndef PURR_DATA
-    if(!pdlua->properties.current_frame)
+    if(!pdlua->properties.current_frame_id)
     {
         pd_error(NULL, "[pdlua] add_int: no active frame");
         return 0;
@@ -807,7 +798,7 @@ static int pdlua_properties_addint(lua_State *L)
     char int_var[IDLENGTH];
     char container_id[IDLENGTH/2];
 
-    pdlua_properties_buildvar(pdlua, int_var);
+    snprintf(int_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     pdgui_vmess(0, "ssi", "set", int_var, init_value);
 
@@ -815,7 +806,7 @@ static int pdlua_properties_addint(lua_State *L)
              pdlua->properties.properties_receiver->s_name, method, int_var);
 
     snprintf(container_id, IDLENGTH/2, "%s.numberbox%d",
-             pdlua->properties.current_frame->s_name,
+             pdlua->properties.current_frame_id->s_name,
              pdlua->properties.property_count);
 
     pdgui_vmess(0, "ss", "frame", container_id);
@@ -862,7 +853,7 @@ static int pdlua_properties_addfloat(lua_State *L)
     double max = luaL_optnumber(L, 6, 1e36);
 
 #ifndef PURR_DATA
-    if(!pdlua->properties.current_frame)
+    if(!pdlua->properties.current_frame_id)
     {
         pd_error(NULL, "[pdlua] add_float: no active frame");
         return 0;
@@ -874,7 +865,7 @@ static int pdlua_properties_addfloat(lua_State *L)
     char float_variable[IDLENGTH];
     char container_id[IDLENGTH];
 
-    pdlua_properties_buildvar(pdlua, float_variable);
+    snprintf(float_variable, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     pdgui_vmess(0, "ssf", "set", float_variable, init_value);
 
@@ -882,7 +873,7 @@ static int pdlua_properties_addfloat(lua_State *L)
              pdlua->properties.properties_receiver->s_name, method, float_variable);
 
     snprintf(container_id, IDLENGTH, "%s.floatbox%d",
-             pdlua->properties.current_frame->s_name,
+             pdlua->properties.current_frame_id->s_name,
              pdlua->properties.property_count);
 
     pdgui_vmess(0, "ss", "frame", container_id);
@@ -966,13 +957,13 @@ static int pdlua_properties_addcombo(lua_State *L)
     char text_id[IDLENGTH];
     char combo_var[IDLENGTH];
 
-    pdlua_properties_buildvar(pdlua, combo_var);
-
-    if(!pdlua->properties.current_frame)
+    if(!pdlua->properties.current_frame_id)
     {
         pd_error(NULL, "[pdlua] add_combo: no active frame");
         return 0;
     }
+
+    snprintf(combo_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     if(init_value < options_count) {
         pdgui_vmess(0,"sss","set", combo_var, opts[init_value]);
@@ -983,7 +974,7 @@ static int pdlua_properties_addcombo(lua_State *L)
              pdlua->properties.properties_receiver->s_name, method);
 
     char container_id[IDLENGTH/2];
-    snprintf(container_id, IDLENGTH/2, "%s.combo%d", pdlua->properties.current_frame->s_name, pdlua->properties.property_count);
+    snprintf(container_id, IDLENGTH/2, "%s.combo%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
 
     pdgui_vmess(0,"ss", "frame", container_id);
 

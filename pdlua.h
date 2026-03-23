@@ -40,7 +40,8 @@ typedef struct _pdlua_properties
 #ifndef PLUGDATA
     t_pending_property pending[MAX_PENDING_PROPERTIES];
     int pending_count;
-    t_symbol *current_frame;
+    t_symbol *current_frame_id;
+    t_symbol *current_frame_name;
     t_symbol *properties_receiver;
     int property_count;
 #ifndef PURR_DATA
