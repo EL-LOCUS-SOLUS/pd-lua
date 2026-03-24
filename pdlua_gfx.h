@@ -130,7 +130,6 @@ static void pdlua_gfx_free(t_pdlua_gfx *gfx) {
 static void pdlua_gfx_repaint(t_pdlua *o, int firsttime) {
 #ifndef PLUGDATA
     o->gfx.first_draw = firsttime;
-    o->gfx.paint_generation++;
 #endif
     lua_getglobal(__L(), "pd");
     lua_getfield (__L(), -1, "_repaint");
@@ -149,7 +148,6 @@ static void pdlua_gfx_repaint(t_pdlua *o, int firsttime) {
 
 // Pass mouse events to lua script
 static void pdlua_gfx_mouse_event(t_pdlua *o, int x, int y, int type) {
-
     lua_getglobal(__L(), "pd");
     lua_getfield (__L(), -1, "_mouseevent");
     lua_pushlightuserdata(__L(), o);
@@ -552,7 +550,7 @@ static void pdlua_sweep_image_cache(t_pdlua_gfx *gfx)
             snprintf(image_name, 64, ".x%llupix%llu", (unsigned long long)gfx, (unsigned long long)gfx->images[i]);
             pdgui_vmess(0, "rrs", "image", "delete", image_name);
 
-            // Swap with last entry and shrink (O(1) removal)
+            // Swap with last entry and shrink
             gfx->images[i] = gfx->images[gfx->num_images - 1];
             gfx->images_last_used[i] = gfx->images_last_used[gfx->num_images - 1];
 
@@ -1006,6 +1004,7 @@ static int end_paint(lua_State *L) {
             pdgui_vmess(0, "crss", cnv, "raise", gfx->current_layer_tag, gfx->layer_tags[layer - 1]);
         }
     }
+    if(layer == 0) gfx->paint_generation++; // Currently, image cleanup only happens on a full repaint. This could be improved
     pdlua_sweep_image_cache(gfx);
 #endif
 

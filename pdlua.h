@@ -76,7 +76,7 @@ typedef struct _pdlua_gfx
     // Variables to keep track of mouse position, button state and whether the mouse is inside the object
     int mouse_x, mouse_y, mouse_down, mouse_inside;
     int first_draw;
-    uint32_t paint_generation;
+    int paint_generation;
 #ifndef PURR_DATA
     uint64_t *images;
     uint32_t *images_last_used;

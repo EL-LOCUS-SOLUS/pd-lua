@@ -174,8 +174,6 @@
 #define luaopen_string lua55_luaopen_string
 #define luaopen_table lua55_luaopen_table
 #define luaopen_utf8 lua55_luaopen_utf8
-#define l_likely(x)	luai_likely(x)
-#define l_unlikely(x) luai_unlikely(x)
 
 #include "lua/lua.h"
 #include "lua/lauxlib.h"
