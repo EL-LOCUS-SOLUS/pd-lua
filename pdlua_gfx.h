@@ -1018,16 +1018,24 @@ static int set_color(lua_State *L) {
     int r, g, b;
     if (lua_gettop(L) == 1) { // Single argument: parse as color ID instead of RGB
         int color_id = luaL_checknumber(L, 1);
-        if(color_id != 1)
+#ifndef PURR_DATA // unless purr-data supports this?
+        uint32_t foreground = (uint32_t)((THISGUI->i_foregroundcolor) << 8 | 0xFF);
+        uint32_t background = (uint32_t)((THISGUI->i_backgroundcolor) << 8 | 0xFF);
+#else
+        uint32_t foreground = 0xFFFFFFFF;
+        uint32_t background = 0xFF000000;
+#endif
+
+        if(color_id == 0)
         {
-            r = 255;
-            g = 255;
-            b = 255;
+            r = (background >> 24) & 0xFF;
+            g = (background >> 16) & 0xFF;
+            b = (background >>  8) & 0xFF;
         }
         else {
-            r = 0;
-            g = 0;
-            b = 0;
+            r = (foreground >> 24) & 0xFF;
+            g = (foreground >> 16) & 0xFF;
+            b = (foreground >>  8) & 0xFF;
         }
     }
     else {
@@ -1116,7 +1124,7 @@ static int fill_all(lua_State *L) {
     const char *tags[] =  { gfx->object_tag, register_drawing(gfx), gfx->current_layer_tag };
 
 #ifndef PURR_DATA
-    pdgui_vmess(0, "crr iiii rs rS", cnv, "create", "rectangle", x1, y1, x2, y2, "-fill", gfx->current_color, "-tags", 3, tags);
+    pdgui_vmess(0, "crr iiii rs rk rS", cnv, "create", "rectangle", x1, y1, x2, y2, "-fill", gfx->current_color, "-outline", gfx->is_selected ? THISGUI->i_selectcolor : THISGUI->i_foregroundcolor,  "-tags", 3, tags);
 #else // PURR_DATA
     gui_vmess("gui_luagfx_fill_all", "xsssiiii", cnv, tags[2], tags[1],
               gfx->current_color,

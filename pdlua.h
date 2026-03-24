@@ -81,6 +81,7 @@ typedef struct _pdlua_gfx
     uint64_t *images;
     uint32_t *images_last_used;
     int num_images;
+    int is_selected;
 #endif
     struct pdlua_proxycanvas *proxycanvas;
 #else

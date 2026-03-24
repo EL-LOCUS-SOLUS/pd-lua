@@ -1070,6 +1070,17 @@ static void pdlua_select(t_gobj *z, t_glist *glist, int state)
         text_widgetbehavior.w_selectfn(z, glist, state);
     }
 }
+#else
+static void pdlua_select(t_gobj *z, t_glist *glist, int state)
+{
+    t_pdlua *x = (t_pdlua *)z;
+    if(x->has_gui) {
+        x->gfx.is_selected = state;
+        pdlua_gfx_repaint(x, 0);
+    } else {
+        text_widgetbehavior.w_selectfn(z, glist, state);
+    }
+}
 #endif
 
 static void pdlua_activate(t_gobj *z, t_glist *glist, int state)
@@ -1571,17 +1582,16 @@ static int pdlua_class_new(lua_State *L)
         // Set custom widgetbehaviour for GUIs
         pdlua_widgetbehavior.w_getrectfn  = pdlua_getrect;
         pdlua_widgetbehavior.w_displacefn = pdlua_displace;
-#ifndef PURR_DATA
-        pdlua_widgetbehavior.w_selectfn   = text_widgetbehavior.w_selectfn;
-#else
+#ifdef PURR_DATA
         // Purr Data only, this seems to be preferred over w_displacefn and is
         // actually needed to make text_widgetbehavior.w_selectfn happy.
         pdlua_widgetbehavior.w_displacefnwtag = pdlua_displace_wtag;
-        // We also do our own variant of text_widgetbehavior.w_selectfn, as the
+#endif
+        // For purr-data, we also do our own variant of text_widgetbehavior.w_selectfn, as the
         // text_widgetbehavior won't give the right object tag with a freshly
         // created gop for some reason.
+        // For pure-data, we need to trigger a repaint when an object gets selected to update the border colour
         pdlua_widgetbehavior.w_selectfn   = pdlua_select;
-#endif
         pdlua_widgetbehavior.w_deletefn   = pdlua_delete;
         pdlua_widgetbehavior.w_clickfn    = pdlua_click;
         pdlua_widgetbehavior.w_visfn      = pdlua_vis;
@@ -1630,19 +1640,14 @@ static int pdlua_object_new(lua_State *L)
                 o->pdlua_class_gfx = c_gfx;
                 o->sp = NULL;
 
+                memset(&o->gfx, 0, sizeof(t_pdlua_gfx));
+                memset(&o->properties, 0, sizeof(t_pdlua_properties));
+
                 o->gfx.width = 80;
                 o->gfx.height = 80;
-
-#ifndef PLUGDATA
-                // Init graphics state for pd
-                o->gfx.mouse_x = 0;
-                o->gfx.mouse_y = 0;
-                o->gfx.mouse_down = 0;
-                o->properties.property_count = 0;
-#else
+#ifdef PLUGDATA
                 // NULL until plugdata overrides them with something useful
                 o->gfx.plugdata_draw_callback = NULL;
-
                 o->gfx.pdlua_gfx_repaint = pdlua_gfx_repaint;
                 o->gfx.pdlua_gfx_mouse_down = pdlua_gfx_mouse_down;
                 o->gfx.pdlua_gfx_mouse_up = pdlua_gfx_mouse_up;
