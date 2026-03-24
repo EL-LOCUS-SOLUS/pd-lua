@@ -372,7 +372,7 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
     snprintf(receiver, MAXPDSTRING, ".%p", p);
     pdlua->properties.properties_receiver = gensym(receiver);
 
-    pdgui_vmess(0, "ss", "destroy", pdlua->properties.properties_receiver->s_name);
+    pdgui_vmess(0, "rs", "destroy", pdlua->properties.properties_receiver->s_name);
 
     if(pdlua->properties.frame_count != 0)
         pd_unbind(&pdlua->pd.ob_pd, p->properties_receiver);
@@ -387,26 +387,26 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
 
     pd_bind(&pdlua->pd.ob_pd, p->properties_receiver);
 
-    pdgui_vmess(0, "ssss", "toplevel", p->properties_receiver->s_name, "-class", "DialogWindow");
+    pdgui_vmess(0, "rs rs", "toplevel", p->properties_receiver->s_name, "-class", "DialogWindow");
 
     char title[MAXPDSTRING];
     snprintf(title, MAXPDSTRING, "%s Properties", pdlua->pdlua_class->c_name->s_name);
-    pdgui_vmess(0, "ssss", "wm", "title", p->properties_receiver->s_name, title);
+    pdgui_vmess(0, "rr rs", "wm", "title", p->properties_receiver->s_name, title);
 
-    pdgui_vmess(0, "sss", "wm", "group", p->properties_receiver->s_name, ".");
-    pdgui_vmess(0, "sssii", "wm", "resizable", p->properties_receiver->s_name, 0, 0);
+    pdgui_vmess(0, "rrsr", "wm", "group", p->properties_receiver->s_name, ".");
+    pdgui_vmess(0, "rrsii", "wm", "resizable", p->properties_receiver->s_name, 0, 0);
 
-    pdgui_vmess(0, "sss", "wm", "transient", p->properties_receiver->s_name, "$::focused_window");
-    pdgui_vmess(0, "ssss", p->properties_receiver->s_name, "configure", "-menu", "$::dialog_menubar");
-    pdgui_vmess(0, "sssfsf", p->properties_receiver->s_name, "configure", "-padx", 0.0f, "-pady", 0.0f);
+    pdgui_vmess(0, "rrsr", "wm", "transient", p->properties_receiver->s_name, "$::focused_window");
+    pdgui_vmess(0, "sr rr", p->properties_receiver->s_name, "configure", "-menu", "$::dialog_menubar");
+    pdgui_vmess(0, "sr ri ri", p->properties_receiver->s_name, "configure", "-padx", 0, "-pady", 0);
 
     // main window
     char frame_id[IDLENGTH];
     snprintf(frame_id, IDLENGTH, ".%p.main", (void *)p);
-    pdgui_vmess(0, "sss", "wm", "deiconify", p->properties_receiver->s_name); // <- on sucess show the window
-    pdgui_vmess(0, "sssf", "frame", frame_id, "-padx", 15.0f, "-pady", 15.0f);
-    pdgui_vmess(0, "sssssf", "pack", frame_id, "-fill", "both", "-expand", 4.0f);
-    pdgui_vmess(0, "sssfsf", "pack", frame_id, "-pady", 10.f, "-padx", 10.f);
+    pdgui_vmess(0, "rrs", "wm", "deiconify", p->properties_receiver->s_name); // <- on sucess show the window
+    pdgui_vmess(0, "rs ri ri", "frame", frame_id, "-padx", 15, "-pady", 15);
+    pdgui_vmess(0, "rs rr ri", "pack", frame_id, "-fill", "both", "-expand", 4);
+    pdgui_vmess(0, "rs ri ri", "pack", frame_id, "-pady", 10, "-padx", 10);
 
     // call _properties
     lua_getglobal(L, "pd");
@@ -438,8 +438,8 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
     char destroy_command[MAXPDSTRING];
     snprintf(destroy_command, MAXPDSTRING, "destroy .%p", (void *)p);
 
-    pdgui_vmess(0, "sssf", "frame", buttons_id, "-pady", 5.0f);
-    pdgui_vmess(0, "ssss", "pack", buttons_id, "-fill", "x");
+    pdgui_vmess(0, "rs ri", "frame", buttons_id, "-pady", 5);
+    pdgui_vmess(0, "rs rs", "pack", buttons_id, "-fill", "x");
 
 #if __APPLE__
     const char* ok_state = "normal";
@@ -451,12 +451,12 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
     snprintf(ok_command, MAXPDSTRING,
         "pdsend \"%s dialog apply\"; destroy .%p",
         p->properties_receiver->s_name, (void *)p);
-    pdgui_vmess(0, "ssssssss", "button", button_ok_id,
+    pdgui_vmess(0, "rs rs rs rs", "button", button_ok_id,
         "-text", "OK", "-command", ok_command, "-default", ok_state);
 
-    pdgui_vmess(0, "ssssss", "button", button_cancel_id,
+    pdgui_vmess(0, "rs rs rs", "button", button_cancel_id,
         "-text", "Cancel", "-command", destroy_command);
-    pdgui_vmess(0, "sssssisisi", "pack", button_cancel_id,
+    pdgui_vmess(0, "rs rs ri ri ri", "pack", button_cancel_id,
         "-side", "left", "-expand", 1, "-padx", 10, "-ipadx", 10);
 
 #if __APPLE__
@@ -489,22 +489,15 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
     pdgui_vmess(0, "r", returnbind);
 
     char apply_command[MAXPDSTRING];
-    snprintf(apply_command, MAXPDSTRING,
-        "pdsend \"%s dialog apply\"",
-        p->properties_receiver->s_name);
-    pdgui_vmess(0, "ssssss", "button", button_apply_id,
-        "-text", "Apply", "-command", apply_command);
-    pdgui_vmess(0, "sssssisisi", "pack", button_apply_id,
-        "-side", "left", "-expand", 1, "-padx", 10, "-ipadx", 10);
+    snprintf(apply_command, MAXPDSTRING, "pdsend \"%s dialog apply\"", p->properties_receiver->s_name);
+    pdgui_vmess(0, "rs rs rs", "button", button_apply_id, "-text", "Apply", "-command", apply_command);
+    pdgui_vmess(0, "rs rs ri ri ri", "pack", button_apply_id, "-side", "left", "-expand", 1, "-padx", 10, "-ipadx", 10);
 #endif
 
-    pdgui_vmess(0, "sssssisisi", "pack", button_ok_id,
-        "-side", "left", "-expand", 1, "-padx", 10, "-ipadx", 10);
+    pdgui_vmess(0, "rs rs ri ri ri", "pack", button_ok_id, "-side", "left", "-expand", 1, "-padx", 10, "-ipadx", 10);
 
     char ok_return_bind[MAXPDSTRING * 2];
-    snprintf(ok_return_bind, MAXPDSTRING * 2,
-        "bind %s <Return> {%s}",
-        button_ok_id, ok_command);
+    snprintf(ok_return_bind, MAXPDSTRING * 2, "bind %s <Return> {%s}", button_ok_id, ok_command);
     pdgui_vmess(0, "r", ok_return_bind);
 
 #if __APPLE__
@@ -512,8 +505,7 @@ static void pdlua_properties(t_gobj *z, t_glist *MAYBE_UNUSED(owner)) {
     snprintf(focus_bind, MAXPDSTRING * 2,
         "bind %s <FocusIn> {if {[focus] ne \"%s\"} {catch {%s configure -default normal}}}",
         p->properties_receiver->s_name,
-        button_ok_id,
-        button_ok_id);
+        button_ok_id, button_ok_id);
     pdgui_vmess(0, "r", focus_bind);
 #endif
 #endif
@@ -533,25 +525,25 @@ static int pdlua_properties_newframe(lua_State *L)
     snprintf(current_frame_name, 100, "_%p_main_frame%d", (void *)&pdlua->properties, pdlua->properties.frame_count);
 
     // Create main frame for set of configurations
-    pdgui_vmess(0, "sssssi", "frame", current_frame_id, "-relief", "groove", "-borderwidth", 1);
-    pdgui_vmess(0, "sssssssisi", "pack", current_frame_id, "-side", "top", "-fill", "x", "-padx", 10,
+    pdgui_vmess(0, "rs rs ri", "frame", current_frame_id, "-relief", "groove", "-borderwidth", 1);
+    pdgui_vmess(0, "rs rs rs ri ri", "pack", current_frame_id, "-side", "top", "-fill", "x", "-padx", 10,
                 "-pady", 10);
 
     // Title of the frame
     char labelid[MAXPDSTRING];
     snprintf(labelid, MAXPDSTRING, "%s.title", current_frame_id);
-    pdgui_vmess(0, "ssss", "label", labelid, "-text", title);
-    pdgui_vmess(0, "sssssf", "pack", labelid, "-side", "top", "-pady", 5.f);
+    pdgui_vmess(0, "rs rs", "label", labelid, "-text", title);
+    pdgui_vmess(0, "rs rs ri", "pack", labelid, "-side", "top", "-pady", 5);
 
     // Create content frame with grid layout
     char content_frame_id[MAXPDSTRING];
     snprintf(content_frame_id, MAXPDSTRING, "%s.content", current_frame_id);
-    pdgui_vmess(0, "ss", "frame", content_frame_id);
-    pdgui_vmess(0, "ssss", "pack", content_frame_id, "-side", "top", "-fill", "x");
+    pdgui_vmess(0, "rs", "frame", content_frame_id);
+    pdgui_vmess(0, "rs rs rs", "pack", content_frame_id, "-side", "top", "-fill", "x");
 
     // Configure grid with 2 equal columns
     for (int i = 0; i < col; i++) {
-        pdgui_vmess(0, "sssisi", "grid", "columnconfigure", content_frame_id, i, "-weight", 1);
+        pdgui_vmess(0, "rs ri ri", "grid", "columnconfigure", content_frame_id, i, "-weight", 1);
     }
 
     pdlua->properties.current_frame_id = gensym(content_frame_id);
@@ -591,7 +583,7 @@ static int pdlua_properties_addcheck(lua_State *L)
     snprintf(check_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     // Initialize the Tcl variable to 0 (unchecked)
-    pdgui_vmess(0, "ssi", "set", check_var, init_value);
+    pdgui_vmess(0, "rsi", "set", check_var, init_value);
 
     // Build the pdsend command
     snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog checkbox %s $%s]",
@@ -599,11 +591,9 @@ static int pdlua_properties_addcheck(lua_State *L)
 
     // Create the checkbox
     snprintf(check_id, IDLENGTH, "%s.check%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
-    pdgui_vmess(0, "ssssssss", "checkbutton", check_id, "-text", text, "-variable", check_var,
-                "-command", pdsend);
+    pdgui_vmess(0, "rs rs rs rs", "checkbutton", check_id, "-text", text, "-variable", check_var, "-command", pdsend);
 
-    pdgui_vmess(0, "sssisi", "grid", check_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col,
-                "-sticky", "we");
+    pdgui_vmess(0, "rs ri ri", "grid", check_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col);
     pdlua_properties_updaterow(&pdlua->properties);
 #else
     char name[MAXPDSTRING];
@@ -637,7 +627,7 @@ static int pdlua_properties_addtext(lua_State *L)
 
     snprintf(text_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
-    pdgui_vmess(0, "sss", "set", text_var, init_value);
+    pdgui_vmess(0, "rss", "set", text_var, init_value);
 
     // Command to send it to pd
     snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog textbox %s $%s]",
@@ -645,25 +635,22 @@ static int pdlua_properties_addtext(lua_State *L)
 
     // container_id for button to set and text input
     char text_button_frame_id[IDLENGTH];
-    snprintf(text_button_frame_id, IDLENGTH, "%s.text_button_frame_%d", pdlua->properties.current_frame_id->s_name,
-             pdlua->properties.property_count);
-    pdgui_vmess(0, "sssssisisi", "frame", text_button_frame_id, "-relief", "solid", "-borderwidth", 0,
-                "-padx", 5, "-pady", 5);
+    snprintf(text_button_frame_id, IDLENGTH, "%s.text_button_frame_%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
+    pdgui_vmess(0, "rs rs ri ri ri", "frame", text_button_frame_id, "-relief", "solid", "-borderwidth", 0, "-padx", 5, "-pady", 5);
 
     // create text for identification
     snprintf(text_id, MAXPDSTRING, "%s.text%d", text_button_frame_id, pdlua->properties.property_count);
-    pdgui_vmess(0, "ssss", "label", text_id, "-text", text);
+    pdgui_vmess(0, "rs rs", "label", text_id, "-text", text);
 
     snprintf(entry_id, MAXPDSTRING, "%s.textbox%d", text_button_frame_id, pdlua->properties.property_count);
-    pdgui_vmess(0, "sssssi", "entry", entry_id, "-textvariable", text_var, "-width", 8);
-    pdgui_vmess(0, "ssss", "bind", entry_id, "<KeyRelease>", pdsend);
-    pdgui_vmess(0, "ssss", "bind", entry_id, "<FocusOut>", pdsend);
+    pdgui_vmess(0, "rs rs ri", "entry", entry_id, "-textvariable", text_var, "-width", 8);
+    pdgui_vmess(0, "rsss", "bind", entry_id, "<KeyRelease>", pdsend);
+    pdgui_vmess(0, "rsss", "bind", entry_id, "<FocusOut>", pdsend);
 
     // Pack the entry
-    pdgui_vmess(0, "ssss", "pack", text_id, "-side", "top");
-    pdgui_vmess(0, "ssss", "pack", entry_id, "-side", "left");
-    pdgui_vmess(0, "sssisisssi", "grid", text_button_frame_id, "-row", pdlua->properties.current_row, "-column",
-                pdlua->properties.current_col, "-sticky", "we", "-padx", 20, "-pady", 20);
+    pdgui_vmess(0, "rs rs", "pack", text_id, "-side", "top");
+    pdgui_vmess(0, "rs rs", "pack", entry_id, "-side", "left");
+    pdgui_vmess(0, "rs ri ri rs ri ri", "grid", text_button_frame_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we", "-padx", 8, "-pady", 8);
     pdlua_properties_updaterow(&pdlua->properties);
 #else
     char name[MAXPDSTRING];
@@ -732,10 +719,10 @@ static int pdlua_properties_addcolor(lua_State *L) {
     snprintf(text_id, MAXPDSTRING, "%s.label", container_id);
     snprintf(colorbox_id, IDLENGTH, "%s.box", container_id);
 
-    pdgui_vmess(0, "ss", "frame", container_id);
-    pdgui_vmess(0, "ssss", "label", text_id, "-text", text);
-    pdgui_vmess(0, "sssssisisssssi", "label", colorbox_id, "-text", "", "-width", 4, "-height", 2, "-background", initcolor, "-relief", "sunken", "-borderwidth", 1);
-    pdgui_vmess(0, "ssss", colorbox_id, "configure", "-cursor", "hand2");
+    pdgui_vmess(0, "rs", "frame", container_id);
+    pdgui_vmess(0, "rs rs ri", "label", text_id, "-text", text, "-width", 8);
+    pdgui_vmess(0, "rs rs ri ri rs rs ri", "label", colorbox_id, "-text", "", "-width", 4, "-height", 2, "-background", initcolor, "-relief", "sunken", "-borderwidth", 1);
+    pdgui_vmess(0, "rs rs", colorbox_id, "configure", "-cursor", "hand2");
 
     pdgui_vmess(0, "r",
     "proc pdlua_choose_color {widget receiver method} {\n"
@@ -755,12 +742,12 @@ static int pdlua_properties_addcolor(lua_State *L) {
 
     snprintf(pdsend, MAXPDSTRING, "pdlua_choose_color %s %s %s", colorbox_id, pdlua->properties.properties_receiver->s_name, method);
 
-    pdgui_vmess(0, "ssss", "bind", colorbox_id, "<Button-1>", pdsend);
+    pdgui_vmess(0, "rsss", "bind", colorbox_id, "<Button-1>", pdsend);
 
-    pdgui_vmess(0, "ssss", "pack", text_id, "-side", "top");
-    pdgui_vmess(0, "sssssi", "pack", colorbox_id, "-side", "top", "-pady", 2);
+    pdgui_vmess(0, "rs rs", "pack", text_id, "-side", "top");
+    pdgui_vmess(0, "rs rs ri", "pack", colorbox_id, "-side", "top", "-pady", 2);
 
-    pdgui_vmess(0,"sssisiss", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "w");
+    pdgui_vmess(0,"rs ri ri rs ri ri", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "w", "-padx", 8, "-pady", 8);
 
     pdlua_properties_updaterow(&pdlua->properties);
 
@@ -800,37 +787,34 @@ static int pdlua_properties_addint(lua_State *L)
 
     snprintf(int_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
-    pdgui_vmess(0, "ssi", "set", int_var, init_value);
+    pdgui_vmess(0, "rsi", "set", int_var, init_value);
 
-    snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog numberbox %s $%s]",
-             pdlua->properties.properties_receiver->s_name, method, int_var);
+    snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog numberbox %s $%s]", pdlua->properties.properties_receiver->s_name, method, int_var);
 
-    snprintf(container_id, IDLENGTH/2, "%s.numberbox%d",
-             pdlua->properties.current_frame_id->s_name,
-             pdlua->properties.property_count);
+    snprintf(container_id, IDLENGTH/2, "%s.numberbox%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
 
-    pdgui_vmess(0, "ss", "frame", container_id);
+    pdgui_vmess(0, "rs", "frame", container_id);
 
     snprintf(text_id, MAXPDSTRING, "%s.label", container_id);
-    pdgui_vmess(0, "ssss", "label", text_id, "-text", text);
+    pdgui_vmess(0, "rs rs", "label", text_id, "-text", text);
 
     snprintf(spinbox_id, IDLENGTH, "%s.spin", container_id);
 
-    pdgui_vmess(0, "sssfsfsfsssissssss", "ttk::spinbox", spinbox_id,
+    pdgui_vmess(0, "rs rf rf rf rs ri rs rs rs", "ttk::spinbox", spinbox_id,
                 "-from", min, "-to", max,
                 "-increment", 1.0f,
                 "-textvariable", int_var,
-                "-width", 8,
+                "-width", 6,
                 "-validate", "key",
                 "-validatecommand", "string is integer %P",
                 "-command", pdsend);
 
-    pdgui_vmess(0, "ssss", "bind", spinbox_id, "<KeyRelease>", pdsend);
-    pdgui_vmess(0, "ssss", "bind", spinbox_id, "<FocusOut>", pdsend);
+    pdgui_vmess(0, "rsss", "bind", spinbox_id, "<KeyRelease>", pdsend);
+    pdgui_vmess(0, "rsss", "bind", spinbox_id, "<FocusOut>", pdsend);
 
-    pdgui_vmess(0, "ssss", "pack", text_id, "-side", "top");
-    pdgui_vmess(0, "ssss", "pack", spinbox_id, "-side", "top");
-    pdgui_vmess(0, "sssisiss", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we");
+    pdgui_vmess(0, "rs rs", "pack", text_id, "-side", "top");
+    pdgui_vmess(0, "rs rs", "pack", spinbox_id, "-side", "top");
+    pdgui_vmess(0, "rs ri ri rs ri ri", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we", "-padx", 8, "-pady", 8);
 
     pdlua_properties_updaterow(&pdlua->properties);
 #else
@@ -867,28 +851,22 @@ static int pdlua_properties_addfloat(lua_State *L)
 
     snprintf(float_variable, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
-    pdgui_vmess(0, "ssf", "set", float_variable, init_value);
+    pdgui_vmess(0, "rsf", "set", float_variable, init_value);
 
-    snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog floatbox %s $%s]",
-             pdlua->properties.properties_receiver->s_name, method, float_variable);
+    snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog floatbox %s $%s]", pdlua->properties.properties_receiver->s_name, method, float_variable);
 
-    snprintf(container_id, IDLENGTH, "%s.floatbox%d",
-             pdlua->properties.current_frame_id->s_name,
-             pdlua->properties.property_count);
+    snprintf(container_id, IDLENGTH, "%s.floatbox%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
 
-    pdgui_vmess(0, "ss", "frame", container_id);
+    pdgui_vmess(0, "rs", "frame", container_id);
 
     snprintf(text_id, MAXPDSTRING, "%s.label", container_id);
-    pdgui_vmess(0, "ssss", "label", text_id, "-text", text);
+    pdgui_vmess(0, "rs rs", "label", text_id, "-text", text);
 
     snprintf(entry_id, MAXPDSTRING, "%s.entry", container_id);
 
-    pdgui_vmess(0, "sssssissss", "entry", entry_id,
-                "-textvariable", float_variable,
-                "-width", 8,
-                "-validate", "key",
-                "-validatecommand", "regexp {^-?[0-9]*\\.?[0-9]*$} %P");
-
+    char entrycmd[MAXPDSTRING];
+    snprintf(entrycmd, sizeof(entrycmd), "entry %s -textvariable %s -width 7 -validate key -validatecommand {regexp {^-?[0-9]*\\.?[0-9]*$} %%P}\n", entry_id, float_variable);
+    pdgui_vmess(0, "r", entrycmd);
 
     char keypresscmd[MAXPDSTRING * 4];
     snprintf(keypresscmd, sizeof(keypresscmd),
@@ -919,9 +897,9 @@ static int pdlua_properties_addfloat(lua_State *L)
     pdgui_vmess(0, "r", focusoutcmd);
 
 
-    pdgui_vmess(0, "ssss", "pack", text_id, "-side", "top");
-    pdgui_vmess(0, "ssss", "pack", entry_id, "-side", "top");
-    pdgui_vmess(0, "sssisiss", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we");
+    pdgui_vmess(0, "rs rs", "pack", text_id, "-side", "top");
+    pdgui_vmess(0, "rs rs", "pack", entry_id, "-side", "top");
+    pdgui_vmess(0, "rs ri ri rs ri ri", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we", "-padx", 8, "-pady", 8);
 
     pdlua_properties_updaterow(&pdlua->properties);
 #else
@@ -966,31 +944,29 @@ static int pdlua_properties_addcombo(lua_State *L)
     snprintf(combo_var, IDLENGTH, "::%s_pdlua_property%d_value", pdlua->properties.current_frame_name->s_name, ++pdlua->properties.property_count);
 
     if(init_value < options_count) {
-        pdgui_vmess(0,"sss","set", combo_var, opts[init_value]);
+        pdgui_vmess(0, "rss", "set", combo_var, opts[init_value]);
     }
 
-    snprintf(pdsend, MAXPDSTRING,
-             "eval pdsend [concat %s dialog combobox %s [expr {[%%W current] + 1}]]",
-             pdlua->properties.properties_receiver->s_name, method);
+    snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog combobox %s [expr {[%%W current] + 1}]]", pdlua->properties.properties_receiver->s_name, method);
 
     char container_id[IDLENGTH/2];
     snprintf(container_id, IDLENGTH/2, "%s.combo%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
 
-    pdgui_vmess(0,"ss", "frame", container_id);
+    pdgui_vmess(0," rs", "frame", container_id);
 
     snprintf(text_id, IDLENGTH, "%s.label", container_id);
-    pdgui_vmess(0,"ssss", "label", text_id, "-text", text);
+    pdgui_vmess(0, "rs rs", "label", text_id, "-text", text);
 
     snprintf(combo_id, IDLENGTH,"%s.widget",container_id);
 
-    pdgui_vmess(0,"sssssSsssi", "ttk::combobox", combo_id, "-textvariable",combo_var, "-values", options_count, opts, "-state", "readonly", "-width", 8);
+    pdgui_vmess(0, "rs rs rS rs ri", "ttk::combobox", combo_id, "-textvariable",combo_var, "-values", options_count, opts, "-state", "readonly", "-width", 8);
 
-    pdgui_vmess(0,"ssss", "bind", combo_id, "<<ComboboxSelected>>", pdsend);
+    pdgui_vmess(0, "rsss", "bind", combo_id, "<<ComboboxSelected>>", pdsend);
 
-    pdgui_vmess(0,"ssss", "pack", text_id, "-side", "top");
-    pdgui_vmess(0,"ssss", "pack", combo_id, "-side", "top");
+    pdgui_vmess(0, "rs rs", "pack", text_id, "-side", "top");
+    pdgui_vmess(0, "rs rs", "pack", combo_id, "-side", "top");
 
-    pdgui_vmess(0,"sssisiss", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we");
+    pdgui_vmess(0, "rs ri ri rs ri ri", "grid", container_id, "-row", pdlua->properties.current_row, "-column", pdlua->properties.current_col, "-sticky", "we", "-padx", 8, "-pady", 8);
 
     pdlua_properties_updaterow(&pdlua->properties);
 #else

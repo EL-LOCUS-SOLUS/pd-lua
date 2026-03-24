@@ -217,7 +217,7 @@ static t_symbol* global_gensym(const char* s)
 // ag: Renamed to pdlua_datadir since we also need this in vanilla when
 // setting up Lua's package.path.
 static char pdlua_datadir[PATH_MAX+1];
-#if PLUGDATA
+#ifdef PLUGDATA
 // Hook to inform plugdata which class names are lua objects
 static void(*plugdata_register_class)(const char*);
 #endif
@@ -1157,7 +1157,7 @@ static void (*nw_gui_vmess)(const char *sel, char *fmt, ...) = NULL;
 /* plugdata support. Similarly, if we're running inside plugdata, we can send GUI messages with plugdata_forward_message
  This allows opening an in-gui text editor instead of opening another app
  */
-#if PLUGDATA
+#ifdef PLUGDATA
 void plugdata_forward_message(int type, void* x, t_symbol *s, int argc, t_atom *argv);
 #endif
 /** a handler for the open item in the right-click menu (mrpeach 20111025) */
@@ -1195,7 +1195,7 @@ static void pdlua_menu_open(t_pdlua *o)
             lua_pop(__L(), 2); /* pop name, global "pd"*/
             return;
         }
-#if PLUGDATA
+#ifdef PLUGDATA
         if (!*class->c_externdir->s_name)
             path = pdlua_datadir;
         else
@@ -1229,7 +1229,7 @@ static void pdlua_menu_open(t_pdlua *o)
 #else
         logpost(NULL, 3, "Opening %s for editing", pathname);
 #endif
-#if PLUGDATA
+#ifdef PLUGDATA
         t_atom arg;
         SETSYMBOL(&arg, gensym(pathname));
         plugdata_forward_message(0, o, gensym("open_textfile"), 1, &arg);
@@ -1564,7 +1564,7 @@ static int pdlua_class_new(lua_State *L)
     }
 #pragma GCC diagnostic pop
     // Let plugdata know this class is a lua object
-#if PLUGDATA
+#ifdef PLUGDATA
     plugdata_register_class(name);
     plugdata_register_class(name_gfx);
 #endif
@@ -3335,7 +3335,7 @@ void pdlua_setup(void)
     snprintf(luaversionStr, MAXPDSTRING, "Using lua version %d.%d", lvm, lvl);
 #endif
 
-#if PLUGDATA
+#ifdef PLUGDATA
     plugdata_register_class = register_class_callback;
 
 #if LUA_USE_JIT
@@ -3348,7 +3348,7 @@ void pdlua_setup(void)
     post(luaversionStr);
 
 // multichannel handling copied from https://github.com/Spacechild1/vstplugin/blob/3f0ed8a800ea238bf204a2ead940b2d1324ac909/pd/src/vstplugin~.cpp#L4122-L4136
-#if PLUGDATA
+#ifdef PLUGDATA
     g_signal_setmultiout = &signal_setmultiout;
 #else
 #ifdef _WIN32
