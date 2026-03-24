@@ -3249,6 +3249,7 @@ static int init_pdlua_environment(lua_State* L, const char* datadir)
     pdlua_properties_setup(L);
 
 #if LUA_USE_JIT
+#ifndef TARGET_OS_IPHONE
     lua_getglobal(L, "jit");
     lua_getfield(L, -1, "on");
     lua_call(L, 0, 0);
@@ -3258,6 +3259,7 @@ static int init_pdlua_environment(lua_State* L, const char* datadir)
     lua_getfield(L, -1, "start");
     lua_pushstring(L, "hotloop=1");
     lua_call(L, 1, 0);
+#endif
 #endif
 
     return 1; /* success */
