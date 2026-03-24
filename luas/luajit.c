@@ -39,16 +39,16 @@ static void preload_compat53(lua_State *L) {
     lua_getglobal(L, "package");
     lua_getfield(L, -1, "preload");
 
-    luaL_loadbuffer(L, (const char*)lua_compat_5_3_compat53_init_lua,
-                       lua_compat_5_3_compat53_init_lua_len, "compat53");
+    luaL_loadbuffer(L, (const char*)__lua_compat_5_3_compat53_init_lua,
+                       __lua_compat_5_3_compat53_init_lua_len, "compat53");
     lua_setfield(L, -2, "compat53");
 
-    luaL_loadbuffer(L, (const char*)lua_compat_5_3_compat53_module_lua,
-                       lua_compat_5_3_compat53_module_lua_len, "compat53.module");
+    luaL_loadbuffer(L, (const char*)__lua_compat_5_3_compat53_module_lua,
+                       __lua_compat_5_3_compat53_module_lua_len, "compat53.module");
     lua_setfield(L, -2, "compat53.module");
 
-    luaL_loadbuffer(L, (const char*)lua_compat_5_3_compat53_file_mt_lua,
-                       lua_compat_5_3_compat53_file_mt_lua_len, "compat53.file_mt");
+    luaL_loadbuffer(L, (const char*)__lua_compat_5_3_compat53_file_mt_lua,
+                       __lua_compat_5_3_compat53_file_mt_lua_len, "compat53.file_mt");
     lua_setfield(L, -2, "compat53.file_mt");
 
     lua_pop(L, 2);
