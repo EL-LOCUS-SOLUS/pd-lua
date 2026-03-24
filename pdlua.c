@@ -1070,7 +1070,7 @@ static void pdlua_select(t_gobj *z, t_glist *glist, int state)
         text_widgetbehavior.w_selectfn(z, glist, state);
     }
 }
-#else
+#elif !defined(PLUGDATA)
 static void pdlua_select(t_gobj *z, t_glist *glist, int state)
 {
     t_pdlua *x = (t_pdlua *)z;
@@ -1591,7 +1591,9 @@ static int pdlua_class_new(lua_State *L)
         // text_widgetbehavior won't give the right object tag with a freshly
         // created gop for some reason.
         // For pure-data, we need to trigger a repaint when an object gets selected to update the border colour
+#ifndef PLUGDATA
         pdlua_widgetbehavior.w_selectfn   = pdlua_select;
+#endif
         pdlua_widgetbehavior.w_deletefn   = pdlua_delete;
         pdlua_widgetbehavior.w_clickfn    = pdlua_click;
         pdlua_widgetbehavior.w_visfn      = pdlua_vis;
