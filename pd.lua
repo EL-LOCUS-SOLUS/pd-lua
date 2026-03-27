@@ -657,7 +657,6 @@ end
 -- constants used in the signal and graphics API
 DATA = 0
 SIGNAL = 1
-Colors = {background = 0, foreground = 1, outline = 2}
 
 -- Text alignment constants
 TOP_LEFT = 0

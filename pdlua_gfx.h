@@ -1014,35 +1014,9 @@ static int end_paint(lua_State *L) {
 static int set_color(lua_State *L) {
     t_pdlua_gfx *gfx = pop_graphics_context(L);
 
-    int r, g, b;
-    if (lua_gettop(L) == 1) { // Single argument: parse as color ID instead of RGB
-        int color_id = luaL_checknumber(L, 1);
-#ifndef PURR_DATA // unless purr-data supports this?
-        uint32_t foreground = (uint32_t)((THISGUI->i_foregroundcolor) << 8 | 0xFF);
-        uint32_t background = (uint32_t)((THISGUI->i_backgroundcolor) << 8 | 0xFF);
-#else
-        uint32_t foreground = 0xFFFFFFFF;
-        uint32_t background = 0xFF000000;
-#endif
-
-        if(color_id == 0)
-        {
-            r = (background >> 24) & 0xFF;
-            g = (background >> 16) & 0xFF;
-            b = (background >>  8) & 0xFF;
-        }
-        else {
-            r = (foreground >> 24) & 0xFF;
-            g = (foreground >> 16) & 0xFF;
-            b = (foreground >>  8) & 0xFF;
-        }
-    }
-    else {
-        r = luaL_checknumber(L, 1);
-        g = luaL_checknumber(L, 2);
-        b = luaL_checknumber(L, 3);
-    }
-
+    int r = luaL_checknumber(L, 1);
+    int g = luaL_checknumber(L, 2);
+    int b = luaL_checknumber(L, 3);
 #ifndef PURR_DATA
     // AFAIK, alpha is not supported in tcl/tk
     snprintf(gfx->current_color, 8, "#%02X%02X%02X", r, g, b);
@@ -1123,7 +1097,7 @@ static int fill_all(lua_State *L) {
     const char *tags[] =  { gfx->object_tag, register_drawing(gfx), gfx->current_layer_tag };
 
 #ifndef PURR_DATA
-    pdgui_vmess(0, "crr iiii rs rk rS", cnv, "create", "rectangle", x1, y1, x2, y2, "-fill", gfx->current_color, "-outline", gfx->is_selected ? THISGUI->i_selectcolor : THISGUI->i_foregroundcolor,  "-tags", 3, tags);
+    pdgui_vmess(0, "crr iiii rs rk ri rS", cnv, "create", "rectangle", x1, y1, x2, y2, "-fill", gfx->current_color, "-outline", gfx->is_selected ? THISGUI->i_selectcolor : THISGUI->i_foregroundcolor, "-width",     glist_getzoom(cnv), "-tags", 3, tags);
 #else // PURR_DATA
     gui_vmess("gui_luagfx_fill_all", "xsssiiii", cnv, tags[2], tags[1],
               gfx->current_color,

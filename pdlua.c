@@ -2588,6 +2588,67 @@ static int pdlua_post(lua_State *L)
     return 0;
 }
 
+/** request default background color */
+static int pdlua_bg_color(lua_State *L)
+/**< Lua interpreter state.
+ * \par Outputs:
+ * \li \c 1 table or rgb values
+* */
+{
+#ifndef PURR_DATA
+    uint32_t color = (uint32_t)((THISGUI->i_backgroundcolor) << 8 | 0xFF);
+#else
+    uint32_t color = 0xFFFFFFFF;
+#endif
+    lua_newtable(L);
+    lua_pushinteger(L, (color >> 24) & 0xFF);
+    lua_rawseti(L, -2, 1);
+    lua_pushinteger(L, (color >> 16) & 0xFF);
+    lua_rawseti(L, -2, 2);
+    lua_pushinteger(L, (color >> 8) & 0xFF);
+    lua_rawseti(L, -2, 3);
+    return 1;
+}
+
+/** request default foreground color */
+static int pdlua_fg_color(lua_State *L)
+/**< Lua interpreter state.
+ * \par Outputs:
+ * \li \c 1 table or rgb values
+* */
+{
+#ifndef PURR_DATA
+    uint32_t color = (uint32_t)((THISGUI->i_foregroundcolor) << 8 | 0xFF);
+#else
+    uint32_t color = 0xFF000000;
+#endif
+    lua_newtable(L);
+    lua_pushinteger(L, (color >> 24) & 0xFF);
+    lua_rawseti(L, -2, 1);
+    lua_pushinteger(L, (color >> 16) & 0xFF);
+    lua_rawseti(L, -2, 2);
+    lua_pushinteger(L, (color >> 8) & 0xFF);
+    lua_rawseti(L, -2, 3);
+    return 1;
+}
+
+/** request pd flavour */
+static int pdlua_flavor(lua_State *L)
+/**< Lua interpreter state.
+ * \par Outputs:
+ * \li \c 1 string: "pure-data", "purr-data" or "plugdata"
+* */
+{
+#ifdef PLUGDATA
+    lua_pushstring(L, "plugdata");
+#elif defined(PURR_DATA)
+    lua_pushstring(L, "purr-data");
+#else
+    lua_pushstring(L, "pure-data");
+#endif
+    return 1;
+}
+
 /** Report an error from a Lua object to Pd's console. */
 static int pdlua_error(lua_State *L)
 /**< Lua interpreter state.
@@ -3005,6 +3066,15 @@ static void pdlua_init(lua_State *L)
     lua_settable(L, -3);
     lua_pushstring(L, "post");
     lua_pushcfunction(L, pdlua_post);
+    lua_settable(L, -3);
+    lua_pushstring(L, "bg_color");
+    lua_pushcfunction(L, pdlua_bg_color);
+    lua_settable(L, -3);
+    lua_pushstring(L, "fg_color");
+    lua_pushcfunction(L, pdlua_fg_color);
+    lua_settable(L, -3);
+    lua_pushstring(L, "flavor");
+    lua_pushcfunction(L, pdlua_flavor);
     lua_settable(L, -3);
     lua_pushstring(L, "_get_args");
     lua_pushcfunction(L, pdlua_get_arguments);
