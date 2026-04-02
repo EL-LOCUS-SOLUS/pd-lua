@@ -785,6 +785,9 @@ static void gfx_displace(t_pdlua *x, t_glist *glist, int dx, int dy)
     char obj_name[32];
     snprintf(obj_name, 32 ,".x%lx", (long)x);
     pdgui_vmess(0, "crs ii", glist_getcanvas(x->canvas), "move", obj_name, dx, dy);
+    /* move order_tag with the object */
+    if (x->gfx.order_tag[0] != '\0')
+        pdgui_vmess(0, "crs ii", glist_getcanvas(x->canvas), "move", x->gfx.order_tag, dx, dy);
 #else
     gui_vmess("gui_text_displace", "xsii", glist_getcanvas(x->canvas), x->gfx.object_tag, dx, dy);
 #endif
@@ -935,12 +938,17 @@ static int start_paint(lua_State *L) {
         {
             // Whenever the objects gets painted for the first time with a "vis" message,
             // we add a small invisible line that won't get touched or repainted later.
-            // We can then use this line to set the correct z-index for the drawings, using the tcl/tk "lower" command
+            // We can then use this line to set the correct z-index for the drawings,
+            // using the tcl/tk "lower" command, placing it at the object's top-left to
+            // avoid spurious scrollbars; gfx_displace moves order_tag with the object.
             t_canvas *cnv = glist_getcanvas(obj->canvas);
             generate_random_id(gfx->order_tag, 64);
 
+            int xpos = text_xpix((t_object*)obj, obj->canvas);
+            int ypos = text_ypix((t_object*)obj, obj->canvas);
+
             const char *tags[] = { gfx->order_tag };
-            pdgui_vmess(0, "crr iiii ri rS", cnv, "create", "line", 0, 0, 0, 0,
+            pdgui_vmess(0, "crr iiii ri rS", cnv, "create", "line", xpos, ypos, xpos, ypos,
                         "-width", 1, "-tags", 1, tags);
         }
 #else // PURR_DATA
