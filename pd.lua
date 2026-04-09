@@ -596,48 +596,7 @@ function pd.Class:get_class() -- accessor for t_class*
   return pd._get_class(self) or nil
 end
 
-local lua = pd.Class:new():register(jit and "pdluajit" or "pdlua")  -- global controls (the [pdlua] object only)
-
-function lua:initialize(sel, atoms)
-  self.inlets = 1
-  self.outlets = 0    -- FIXME: might be nice to have errors go here?
-  return true
-end
-
-function lua:in_1_load(atoms)  -- execute a script
-  self:dofile(atoms[1])
-end
-
-local luax = pd.Class:new():register(jit and "pdluaxjit" or "pdluax")  -- classless lua externals (like [pdluax foo])
-
-function luax:initialize(sel, atoms)          -- motivation: pd-list 2007-09-23
-  if not atoms[1] then
-    -- create a dummy object, which can still be clicked for help
-    self.inlets = 0
-    self.outlets = 0
-    self._scriptname = ""
-    return true
-  end
-  local f, pathname = self:dofile(atoms[1] .. ".pd_luax")
-  if f and pathname then
-    local function basename(str)
-      return string.gsub(str, "(.*/)(.*)", "%2")
-    end
-    self._scriptname = pathname .. '/' .. basename(atoms[1]) .. ".pd_luax" -- mrpeach 20120201
-    local atomstail = { }          -- munge for better lua<->luax compatibility
-    for i,_ in ipairs(atoms) do
-      if i > 1 then
-        atomstail[i-1] = atoms[i]
-      end
-    end
-    return f(self, atoms[1], atomstail)
-  else
-    return false   -- error message already output by dofile()
-  end
-end
-
 -- convenience creation functions for classes, arrays, clocks, receivers
-
 function pd.class(...)
    return pd.Class:new():register(...)
 end
@@ -671,6 +630,6 @@ BOTTOM_RIGHT = 8
 
 -- pre-load pdx.lua (advanced live coding support); if you don't want this,
 -- just comment out the line below
-pdx = require 'pdx'
+-- pdx = require 'pdx'
 
 -- fin pd.lua

@@ -63,7 +63,7 @@ static void preload_compat53(lua_State *L) {
 #undef lua_gc
 #define lua_gc(L, what) lua_gc(L, what, 0)
 
-#define pdlua_setup pdluajit_setup
+#define lua_setup luajit_setup
 
 #ifdef PLUGDATA
 #define pdlua_instance_setup pdluajit_instance_setup

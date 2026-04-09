@@ -368,9 +368,9 @@ static int pdlua_loader_legacy (t_canvas *canvas, char *name, char *path);
 __declspec(dllexport)
 #endif
 #ifdef PLUGDATA
-void pdlua_setup(const char *datadir, char *versbuf, int versbuf_length, void(*register_class_callback)(const char*));
+void lua_setup(const char *datadir, char *versbuf, int versbuf_length, void(*register_class_callback)(const char*));
 #else
-void pdlua_setup (void);
+void lua_setup (void);
 #endif
 /* end prototypes*/
 
@@ -1553,7 +1553,7 @@ static int pdlua_class_new(lua_State *L)
 #pragma GCC diagnostic ignored "-Wcast-function-type"
     c = class_new(global_gensym((char *) name), (t_newmethod)pdlua_new,
         (t_method) pdlua_free, sizeof(t_pdlua), CLASS_NOINLET | CLASS_MULTICHANNEL, A_GIMME, 0);
-    if (strcmp(name, "pdlua") && strcmp(name, "pdluax") && strcmp(name, "pdluajit") && strcmp(name, "pdluaxjit")) {
+    if (strcmp(name, "lua")) {
         // Shadow class for graphics objects. This is an exact clone of the
         // regular (non-gui) class, except that it has a different
         // widgetbehavior. We only need this for the regular Lua objects, the
@@ -3283,7 +3283,7 @@ static int init_pdlua_environment(lua_State* L, const char* datadir)
 
     fd = open(pd_lua_path, O_RDONLY);
     PDLUA_DEBUG("pdlua canvas_open done fd = %d", fd);
-    PDLUA_DEBUG("pdlua_setup: stack top %d", lua_gettop(L));
+    PDLUA_DEBUG("lua_setup: stack top %d", lua_gettop(L));
 
     if (fd < 0) {
         pd_error(NULL, "lua: error loading `pd.lua': open() failed");
@@ -3358,9 +3358,9 @@ void pdlua_instance_setup()
 __declspec(dllexport)
 #endif
 #ifdef PLUGDATA
-void pdlua_setup(const char *datadir, char *versbuf, int versbuf_length, void(*register_class_callback)(const char*))
+void lua_setup(const char *datadir, char *versbuf, int versbuf_length, void(*register_class_callback)(const char*))
 #else
-void pdlua_setup(void)
+void lua_setup(void)
 #endif
 {
     char                luaversionStr[MAXPDSTRING];
@@ -3497,7 +3497,7 @@ void pdlua_setup(void)
             sys_register_loader((loader_t)pdlua_loader_pathwise);
     }
 
-    PDLUA_DEBUG("pdlua_setup: end. stack top %d", lua_gettop(L));
+    PDLUA_DEBUG("lua_setup: end. stack top %d", lua_gettop(L));
 
     /* ── nw.js support ── */
 #ifndef PLUGDATA
@@ -3513,11 +3513,11 @@ void pdlua_setup(void)
 
 #ifndef LUA_USE_JIT
 #ifdef PLUGDATA
-    void pdluajit_setup(const char *datadir, char *versbuf, int versbuf_length, void(*register_class_callback)(const char*));
-    pdluajit_setup(datadir, versbuf + strlen(versbuf), versbuf_length - strlen(versbuf), register_class_callback);
+    void luajit_setup(const char *datadir, char *versbuf, int versbuf_length, void(*register_class_callback)(const char*));
+    luajit_setup(datadir, versbuf + strlen(versbuf), versbuf_length - strlen(versbuf), register_class_callback);
 #else
-    void pdluajit_setup();
-    pdluajit_setup();
+    void luajit_setup();
+    luajit_setup();
 # endif
 #endif
 }
