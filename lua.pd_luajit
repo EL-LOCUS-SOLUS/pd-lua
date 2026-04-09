@@ -1,5 +1,15 @@
 local luaobj = pd.Class:new():register("lua")
 
+local bit = require("bit")
+
+local TWO31 = 2147483648
+local function rand_u31()
+    return bit.band(
+        bit.tobit(math.random() * 4294967296), -- 2^32
+        0x7fffffff
+    )
+end
+
 function luaobj:initialize(sel, atoms)
     self.inlets = {}
     self.outlets = {}
@@ -53,7 +63,7 @@ function luaobj:initialize(sel, atoms)
     local lua_code = table.concat(atoms, " ")
     lua_code = string.gsub(lua_code, ";", "\n")
 
-    self.function_prefix = "fn_" .. tostring(math.random(0, 1 << 32)) .. "_"
+    self.function_prefix = "fn_" .. tostring(rand_u31()) .. "_"
 
     -- Give functions unique names to prevent namespace clashes
     lua_code = string.gsub(lua_code, "function%s+in_(%d+)_(%a+)", function(num, type)
