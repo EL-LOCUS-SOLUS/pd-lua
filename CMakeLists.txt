@@ -89,7 +89,7 @@ if(NOT TARGET lua)
 
   target_link_libraries(lua PUBLIC luajit)
   pd_add_datafile(lua ${CMAKE_CURRENT_SOURCE_DIR}/pd.lua)
-  pd_add_datafile(lua ${CMAKE_CURRENT_SOURCE_DIR}/lua.pd_lua)
+  pd_add_datafile(lua ${CMAKE_CURRENT_SOURCE_DIR}/lua.pd_luajit)
 
   add_dependencies(lua luajit_build)
 endif()
