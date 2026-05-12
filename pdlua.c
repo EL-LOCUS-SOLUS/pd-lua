@@ -3149,6 +3149,38 @@ static int pdlua_loader_fromfd
     return 1;
 }
 
+static int pdlua_class_loaded(const char *name)
+{
+    lua_State *L = __L();
+    int top, result = 0;
+
+    if (!L)
+        return 0;
+
+    top = lua_gettop(L);
+    lua_getglobal(L, "pd");
+    if (lua_istable(L, -1))
+    {
+        lua_getfield(L, -1, "_resolve_classname");
+        if (lua_isfunction(L, -1))
+        {
+            lua_pushstring(L, name);
+            if (!lua_pcall(L, 1, 1, 0))
+                result = lua_isstring(L, -1);
+        }
+    }
+    lua_settop(L, top);
+    return result;
+}
+
+static void pdlua_addcreator(const char *name)
+{
+    t_symbol *s = gensym(name);
+
+    if (!zgetfn(&pd_objectmaker, s))
+        class_addcreator((t_newmethod)pdlua_new, s, A_GIMME, 0);
+}
+
 static int pdlua_loader_wrappath
 (
     int         fd, /**< file-descriptor of .pd_lua file */
@@ -3218,14 +3250,21 @@ static int pdlua_loader_pathwise
     const char          *classname;
     int                 fd;
 
-    if(!path)
-    {
-      /* we already tried all paths, so skip this */
-      return 0;
-    }
     if ((classname = strrchr(objectname, '/')))
         classname++;
     else classname = objectname;
+
+    if(!path)
+    {
+      /* we already tried all paths; reuse an already-loaded basename class. */
+      if (classname != objectname && pdlua_class_loaded(classname))
+      {
+          pdlua_addcreator(objectname);
+          return 1;
+      }
+      return 0;
+    }
+
     /* ag: Try loading <path>/<classname>.pd_lua (experimental).
        sys_trytoopenone will correctly find the file in a subdirectory if a
        path is given, and it will then return that subdir in dirbuf. */
@@ -3242,8 +3281,10 @@ static int pdlua_loader_pathwise
     filename[MAXPDSTRING-1] = 0;
     if ((fd = trytoopenone(path, filename, LUA_FILE_EXTENSION,
         dirbuf, &ptr, MAXPDSTRING, 1)) >= 0)
-        if(pdlua_loader_wrappath(fd, objectname, dirbuf))
+        if(pdlua_loader_wrappath(fd, objectname, dirbuf)) {
+            pdlua_addcreator(objectname);
             return 1;
+        }
     return 0;
 }
 
