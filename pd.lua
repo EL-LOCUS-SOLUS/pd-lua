@@ -46,13 +46,41 @@ pd._clearrequirepath = function()
 end
 
 -- check if we need to register a basename class first
+pd._resolve_classname = function (name)
+  local fullpath = pd._pathnames[name]
+  if nil ~= pd._classes[fullpath] then
+    return fullpath
+  end
+
+  local basename = string.match(name, ".*/([^/]+)$")
+  if basename then
+    fullpath = pd._pathnames[basename]
+    if nil ~= pd._classes[fullpath] then
+      pd._pathnames[name] = fullpath
+      return fullpath
+    end
+  else
+    local suffix = "/" .. name
+    for othername, otherpath in pairs(pd._pathnames) do
+      if type(otherpath) == "string" and
+         string.sub(othername, -#suffix) == suffix and
+         nil ~= pd._classes[otherpath] then
+        pd._pathnames[name] = otherpath
+        return otherpath
+      end
+    end
+  end
+
+  return nil
+end
+
 pd._checkbase = function (name)
-  return pd._pathnames[name] == true
+  return pd._pathnames[name] == true and nil == pd._resolve_classname(name)
 end
 
 -- constructor dispatcher
 pd._constructor = function (name, atoms)
-  local fullpath = pd._pathnames[name]
+  local fullpath = pd._resolve_classname(name)
   if nil ~= pd._classes[fullpath] then
     local o = pd._classes[fullpath]:new():construct(name, atoms)
     if o then
