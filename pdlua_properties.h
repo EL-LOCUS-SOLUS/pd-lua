@@ -585,9 +585,15 @@ static int pdlua_properties_addcheck(lua_State *L)
     // Initialize the Tcl variable to 0 (unchecked)
     pdgui_vmess(0, "rsi", "set", check_var, init_value);
 
-    // Build the pdsend command
+#if __APPLE__
+    snprintf(pdsend, MAXPDSTRING,
+             "eval pdsend [concat %s dialog checkbox %s $%s]; pdsend \"%s dialog apply\"",
+             pdlua->properties.properties_receiver->s_name, method, check_var,
+             pdlua->properties.properties_receiver->s_name);
+#else
     snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog checkbox %s $%s]",
              pdlua->properties.properties_receiver->s_name, method, check_var);
+#endif
 
     // Create the checkbox
     snprintf(check_id, IDLENGTH, "%s.check%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
@@ -947,7 +953,14 @@ static int pdlua_properties_addcombo(lua_State *L)
         pdgui_vmess(0, "rss", "set", combo_var, opts[init_value]);
     }
 
+#if __APPLE__
+    snprintf(pdsend, MAXPDSTRING,
+             "eval pdsend [concat %s dialog combobox %s [expr {[%%W current] + 1}]]; pdsend \"%s dialog apply\"",
+             pdlua->properties.properties_receiver->s_name, method,
+             pdlua->properties.properties_receiver->s_name);
+#else
     snprintf(pdsend, MAXPDSTRING, "eval pdsend [concat %s dialog combobox %s [expr {[%%W current] + 1}]]", pdlua->properties.properties_receiver->s_name, method);
+#endif
 
     char container_id[IDLENGTH/2];
     snprintf(container_id, IDLENGTH/2, "%s.combo%d", pdlua->properties.current_frame_id->s_name, pdlua->properties.property_count);
