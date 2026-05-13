@@ -3270,8 +3270,10 @@ static int pdlua_loader_pathwise
        path is given, and it will then return that subdir in dirbuf. */
     if ((fd = trytoopenone(path, objectname, LUA_FILE_EXTENSION,
         dirbuf, &ptr, MAXPDSTRING, 1)) >= 0)
-        if(pdlua_loader_wrappath(fd, objectname, dirbuf))
+        if(pdlua_loader_wrappath(fd, objectname, dirbuf)) {
+            pdlua_addcreator(objectname);
             return 1;
+        }
 
     /* next try (objectname)/(classname).(sys_dllextent) ... */
     strncpy(filename, objectname, MAXPDSTRING);
