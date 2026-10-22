@@ -47,6 +47,7 @@
 // the spot below and in pdlua.c (look for #ifdef/#ifndef PURR_DATA).
 
 #define glist_getzoom(x) 1
+#define pdlua_get_gui_zoom(x) 1
 
 // this has an extra argument in vanilla (which we ignore)
 static int xxsys_hostfontsize(int fontsize, int zoom)
@@ -630,6 +631,18 @@ static void pdlua_sweep_image_cache(t_pdlua_gfx *gfx)
             i++;
         }
     }
+}
+
+// Zoom of each window, as reported by the Tcl hook in pdlua_gui_setup(), keyed by .x%lx window id.
+// Windows we haven't heard from (including all windows before Pd 0.57) have a zoom of 1.
+static struct { unsigned long window; t_float zoom; } *pdlua_gui_zooms;
+static int pdlua_num_gui_zooms;
+
+static t_float pdlua_get_gui_zoom(t_canvas *cnv)
+{
+    for (int i = 0; i < pdlua_num_gui_zooms; i++)
+        if (pdlua_gui_zooms[i].window == (unsigned long)cnv) return pdlua_gui_zooms[i].zoom;
+    return 1;
 }
 #endif
 
@@ -1495,9 +1508,11 @@ static int draw_svg(lua_State *L) {
 
     t_canvas *cnv = glist_getcanvas(obj->canvas);
     int canvas_zoom = glist_getzoom(cnv);
+    // Tk zooms the image position for us, but not its pixels
+    t_float render_zoom = canvas_zoom * pdlua_get_gui_zoom(cnv);
 
     // We can only apply scaling with an equal aspect ratio, so we only use the first scale coordinate
-    t_float scale_x = canvas_zoom, scale_y = canvas_zoom;
+    t_float scale_x = render_zoom, scale_y = render_zoom;
     transform_size_float(gfx, &scale_x, &scale_y);
     float scale = (float)((scale_x + scale_y) * 0.5);
 
@@ -1548,8 +1563,8 @@ static int draw_svg(lua_State *L) {
     const int channels = 4;
     // Apply scale, limit size to object size
     // This is not perfect clipping, but it at least prevents accidental large images from freezing pd
-    int w = (int)fmax(image->width * scale, gfx->width * canvas_zoom);
-    int h = (int)fmax(image->height* scale, gfx->height * canvas_zoom);
+    int w = (int)fmax(image->width * scale, gfx->width * render_zoom);
+    int h = (int)fmax(image->height* scale, gfx->height * render_zoom);
     int image_size = w * h * channels;
 
     unsigned char *bitmap_data = getbytes(image_size);
@@ -1613,8 +1628,10 @@ static int draw_image(lua_State *L) {
 
     t_canvas *cnv = glist_getcanvas(obj->canvas);
     int canvas_zoom = glist_getzoom(cnv);
+    // Tk zooms the image position for us, but not its pixels
+    t_float render_zoom = canvas_zoom * pdlua_get_gui_zoom(cnv);
 
-    t_float scale_x = canvas_zoom, scale_y = canvas_zoom;
+    t_float scale_x = render_zoom, scale_y = render_zoom;
     transform_size_float(gfx, &scale_x, &scale_y);
     float scale = (float)((scale_x + scale_y) * 0.5);
 
