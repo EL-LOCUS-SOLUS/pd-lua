@@ -1529,6 +1529,64 @@ static int pdlua_set_arguments(lua_State *L)
 
 static t_widgetbehavior pdlua_widgetbehavior;
 
+#if !PLUGDATA && !defined(PURR_DATA)
+// Pd 0.57+ zoom support: tcl hook to report current zoom level
+static const char *pdlua_gui_tcl =
+    "proc ::pdlua_zoom_changed {name1 c op} {\n"
+    "    catch {pdsend \"pdlua_gui zoom [winfo toplevel $c] $::pd_canvaszoom::zdepth($c)\"}\n"
+    "}\n"
+    "if {[namespace exists ::pd_canvaszoom]} {\n"
+    "    trace remove variable ::pd_canvaszoom::zdepth write ::pdlua_zoom_changed\n"
+    "    trace add variable ::pd_canvaszoom::zdepth write ::pdlua_zoom_changed\n"
+    "    foreach c [array names ::pd_canvaszoom::zdepth] {::pdlua_zoom_changed {} $c {}}\n"
+    "}\n";
+
+// Repaint objects that draw bitmaps onto this window
+static void pdlua_gui_repaint_images(t_glist *gl, unsigned long window)
+{
+    for (t_gobj *g = gl->gl_list; g; g = g->g_next) {
+        t_class *c = pd_class(&g->g_pd);
+        if (c == canvas_class)
+            pdlua_gui_repaint_images((t_glist *)g, window);
+        else if (c->c_wb == &pdlua_widgetbehavior) {
+            t_pdlua *x = (t_pdlua *)g;
+            if (x->gfx.num_images && (unsigned long)glist_getcanvas(x->canvas) == window)
+                pdlua_gfx_repaint(x, 0);
+        }
+    }
+}
+
+static void pdlua_gui_zoom(t_pd *dummy, t_symbol *window, t_floatarg zoom)
+{
+    (void)dummy;
+    unsigned long id;
+    if (sscanf(window->s_name, ".x%lx", &id) != 1) return;
+
+    // Entries are never removed, a reopened window always reports its zoom again
+    int i = 0;
+    while (i < pdlua_num_gui_zooms && pdlua_gui_zooms[i].window != id) i++;
+    t_float old_zoom = i < pdlua_num_gui_zooms ? pdlua_gui_zooms[i].zoom : 1;
+    if (zoom == old_zoom) return;
+    if (i == pdlua_num_gui_zooms) {
+        pdlua_gui_zooms = resizebytes(pdlua_gui_zooms, i * sizeof(*pdlua_gui_zooms), (i + 1) * sizeof(*pdlua_gui_zooms));
+        pdlua_gui_zooms[pdlua_num_gui_zooms++].window = id;
+    }
+    pdlua_gui_zooms[i].zoom = zoom;
+
+    // Walk all patches rather than trusting the window id as a pointer, the canvas might be gone
+    for (t_canvas *root = pd_getcanvaslist(); root; root = root->gl_next)
+        pdlua_gui_repaint_images(root, id);
+}
+
+static void pdlua_gui_setup(void)
+{
+    t_class *c = class_new(gensym("pdlua gui"), 0, 0, sizeof(t_pd), CLASS_PD, 0);
+    class_addmethod(c, (t_method)pdlua_gui_zoom, gensym("zoom"), A_SYMBOL, A_FLOAT, 0);
+    pd_bind(pd_new(c), gensym("pdlua_gui"));
+    pdgui_vmess(0, "r", pdlua_gui_tcl);
+}
+#endif
+
 /** Lua class registration. This is equivalent to the "setup" method for an ordinary Pd class */
 static int pdlua_class_new(lua_State *L)
 /**< Lua interpreter state.
@@ -2641,10 +2699,10 @@ static int pdlua_sel_color(lua_State *L)
  * \li \c 1 table or rgb values
 * */
 {
-#if !defined(PURR_DATA) && !defined(PLUGDATA)
+#ifndef PURR_DATA
     uint32_t color = (uint32_t)((THISGUI->i_selectcolor) << 8 | 0xFF);
 #else
-    uint32_t color = 0xFFFFFFFF;
+    uint32_t color = 0xFFD97833;
 #endif
     lua_newtable(L);
     lua_pushinteger(L, (color >> 24) & 0xFF);
@@ -2663,10 +2721,10 @@ static int pdlua_gop_color(lua_State *L)
  * \li \c 1 table or rgb values
 * */
 {
-#if !defined(PURR_DATA) && !defined(PLUGDATA)
+#ifndef PURR_DATA
     uint32_t color = (uint32_t)((THISGUI->i_gopcolor) << 8 | 0xFF);
 #else
-    uint32_t color = 0xFFFFFFFF;
+    uint32_t color = 0xFFFF0000;
 #endif
     lua_newtable(L);
     lua_pushinteger(L, (color >> 24) & 0xFF);
@@ -3544,6 +3602,9 @@ void lua_setup(void)
     PDLUA_DEBUG("pdlua pdlua_proxyclock_setup done", 0);
     pdlua_proxycanvas_setup();
     PDLUA_DEBUG("pdlua pdlua_proxycanvas_setup done", 0);
+#if !PLUGDATA && !defined(PURR_DATA)
+    pdlua_gui_setup();
+#endif
     if (! pdlua_proxyinlet_class || ! pdlua_proxyreceive_class || ! pdlua_proxyclock_class || ! pdlua_proxycanvas_class)
     {
         pd_error(NULL, "lua: error creating proxy classes");
